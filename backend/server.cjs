@@ -13,6 +13,10 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs"); 
 
 const userRoutes = require("./routes/users")
+const userProducts = require("./routes/products")
+const userCategories = require("./routes/categories")
+const userOrders = require("./routes/orders")
+
 
 const app = express()
 
@@ -48,17 +52,22 @@ connectToMongoDB()
     });
 
 
+
+app.use(cors({
+    // origin: "https://your-frontend-domian.com"
+}));
 app.use(limiter);
 app.use(express.json())
 app.use(helmet())
 app.use(morgan("dev"))
-app.use(cors)
-app.use(cookieParser)
-app.use(compression)
-app.use(mongoSanitize)
-app.use(xss)
-
-
+app.use(cookieParser())
+app.use(compression())
+app.use(mongoSanitize())
+app.use(xss())
+app.use("/api/users", userRoutes);
+app.use("/api/products",userProducts)
+app.use("/api/categories",userCategories)
+app.use("/api/orders",userOrders)
 
 
 

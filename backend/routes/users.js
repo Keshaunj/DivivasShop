@@ -1,4 +1,4 @@
-const express= require('express')
+const express = require('express');
 const Router = express.Router();
 
 Router.get('/dashbaord',(req,res)=>{
