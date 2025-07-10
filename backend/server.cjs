@@ -11,16 +11,18 @@ const xss = require("xss-clean");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs"); 
+const session = require("express-session")
 
 const userRoutes = require("./routes/users")
 const userProducts = require("./routes/products")
 const userCategories = require("./routes/categories")
-const userOrders = require("./routes/orders")
+const userOrders = require("./routes/orders");
+const { default: session } = require("express-session");
 
 
 const app = express()
 
-dotenv.config()
+dotenv.config();
 
 const mongoURI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 3000;
@@ -56,6 +58,12 @@ connectToMongoDB()
 app.use(cors({
     // origin: "https://your-frontend-domian.com"
 }));
+app.use(session({
+  secret: "yourSecretKey",
+  resave: false,
+  saveUninitialized: false,
+}));
+
 app.use(limiter);
 app.use(express.json())
 app.use(helmet())
