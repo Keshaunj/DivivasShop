@@ -12,7 +12,6 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs"); 
 const session = require("express-session")
-
 const userRoutes = require("./routes/users")
 const userProducts = require("./routes/products")
 const userCategories = require("./routes/categories")

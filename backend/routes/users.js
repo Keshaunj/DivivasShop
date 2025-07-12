@@ -1,20 +1,25 @@
 const express = require('express');
+const { signupUser } = require('../controllers/authController');
 const Router = express.Router();
+const {
+signupUser,
+get
+}
 
-Router.get('/dashbaord',(req,res)=>{
+router.get('/dashbaord',(req,res)=>{
     res.json({message: 'User Dashbaord Data'})
 })
 
-Router.get('/profile',(req,res)=> {
+router.get('/profile',(req,res)=> {
     res.json({message: 'User Profile'})
 })
-Router.get('/catergories',(req,res)=>{
+router.get('/catergories',(req,res)=>{
     res.json({message: 'Catergories for Users'})
 })
-Router.get('/orders',(req,res)=>{
+router.get('/orders', (req,res)=>{
     res.json({message: 'Users Orders'})
 })
-Router.get('/products',(req,res)=>{
+router.get('/products',(req,res)=>{
     res.json({message: 'Products for Users'})
 })
 
