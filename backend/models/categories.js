@@ -1,5 +1,6 @@
-const User = require('../models/User');
+const User = require('../models/users');
 const mongoose = require('mongoose');
+
 
 const categorySchema = new mongoose.Schema({
   name: {
@@ -17,5 +18,6 @@ const categorySchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
 
 module.exports = mongoose.model('Category', categorySchema);

@@ -11,13 +11,9 @@ const {
     updateAddress
 } = require('../controllers/userControllers')
 
-router.get('/dashboard', (req,res)=>{
-    res.json({message: 'User Dashbaord Data'})
-})
 
-router.get('/profile',(req,res)=> {
-    res.json({message: 'User Profile'})
-})
+
+
 router.get('/categories',(req,res)=>{
     res.json({message: 'Catergories for Users'})
 })
@@ -69,4 +65,4 @@ router.post('/checkout', (req, res) => {
 });
 
 
-module.exports = Router;
+module.exports = router;
