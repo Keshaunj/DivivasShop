@@ -1,17 +1,15 @@
-const sanitize = require('express-mongo-sanitize');
+const { sanitize } = require('express-mongo-sanitize');
+const { query, body } = require('express-validator');
 
-module.exports = (req, res, next) => {
-
-  if (req.query) {
-    req.query = JSON.parse(JSON.stringify(req.query));
-  }
-  if (req.body) {
-    req.body = JSON.parse(JSON.stringify(req.body));
-  }
+module.exports = [
   
+  query('*').escape(), 
+  body('*').escape(),   
 
-  sanitize.sanitize(req.query);
-  sanitize.sanitize(req.body);
-  
-  next();
-};
+
+  (req, res, next) => {
+    req.sanitizedQuery = req.query ? sanitize({ ...req.query }) : {};
+    req.sanitizedBody = req.body ? sanitize({ ...req.body }) : {};
+    next();
+  }
+];

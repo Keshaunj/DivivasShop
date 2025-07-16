@@ -6,10 +6,9 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
 const morgan = require("morgan");
-const MongoSanitize = require("express-mongo-sanitize");
-const xss = require("xss-clean");
+
 const mongoose = require("mongoose");
-const sanitizeMiddleware =require ('./middleware/sanitize')
+const sanitizeMiddleware = require ('./middleware/sanitize')
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const session = require("express-session");
@@ -18,9 +17,10 @@ const userRoutes = require("./routes/users");
 const productRoutes = require("./routes/products");
 const userCategories = require("./routes/categories");
 const userOrders = require("./routes/orders");
-
-
 const app = express();
+const authRouter = require('./routes/auth');
+
+
 
 dotenv.config();
 
@@ -65,19 +65,20 @@ app.use(
   })
 );
 
-app.use(limiter);
 app.use(express.json());
-app.use(helmet());
-app.use(morgan("dev"));
 app.use(cookieParser());
-app.use(compression());
 app.use(sanitizeMiddleware);
-app.use(xss());
 
+app.use(helmet());
+app.use(compression());
+app.use(morgan('dev'));
+app.use('/api/auth', authRouter);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/categories", userCategories);
 app.use("/api/orders", userOrders);
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

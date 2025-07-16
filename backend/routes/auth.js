@@ -1,16 +1,17 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-// login
-// signup
-// logout
-router.get("/login", (req, res) => {
-  res.json({ message: "Login Successful" });
-});
-router.get("/signup", (req, res) => {
-  res.json({ message: "SignUp successful" });
-});
-router.get("/register", (req, res) => {
-  res.json({
-    message: "Registation Complete!",
-  });
-});
+const { signupUser, loginUser, logoutUser } = require('../controllers/authController');
+const { validateSignup, validateLogin } = require('../middleware/validation');
+
+
+
+// /api/auth/signup
+router.post('/signup', validateSignup, signupUser);
+
+
+router.post('/login', validateLogin, loginUser);
+
+
+router.post('/logout', logoutUser);
+
+module.exports = router;
