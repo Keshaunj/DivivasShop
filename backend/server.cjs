@@ -9,23 +9,17 @@ const morgan = require("morgan");
 
 const mongoose = require("mongoose");
 const sanitizeMiddleware = require ('./middleware/sanitize')
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+
 const session = require("express-session");
-
-const userRoutes = require("./routes/users");
-const productRoutes = require("./routes/products");
-const userCategories = require("./routes/categories");
-const userOrders = require("./routes/orders");
 const app = express();
-const authRouter = require('./routes/auth');
 
+const apiRouter = require('./routes'); 
 
 
 dotenv.config();
 
 
-const PORT = process.env.PORT || 3000;
+
 
 const mongoURI = process.env.MONGODB_URI;
 
@@ -72,14 +66,25 @@ app.use(sanitizeMiddleware);
 app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
-app.use('/api/auth', authRouter);
-app.use("/api/users", userRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/categories", userCategories);
-app.use("/api/orders", userOrders);
 
 
+app.use('/api', apiRouter);
 
+
+console.log('Registered routes:');
+app._router.stack.forEach(layer => {
+  if (layer.route) {
+    console.log(`${layer.route.stack[0].method} ${layer.route.path}`);
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+
+
+
+
+

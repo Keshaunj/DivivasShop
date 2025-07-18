@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs'); 
 const sanitize = require('mongoose-sanitize');
 
 const userSchema = new mongoose.Schema({
@@ -16,7 +17,7 @@ const userSchema = new mongoose.Schema({
   password: { 
     type: String, 
     required: true,
-    select: false // Never return in queries
+    select: false
   },
   address: {
     street: String,
@@ -29,6 +30,26 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-userSchema.plugin(sanitize); // Only applied to User model
+
+userSchema.pre('save', async function(next) {
+
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(12); 
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+
+userSchema.plugin(sanitize);
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,4 +1,3 @@
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/users');
 require('dotenv').config();
@@ -7,56 +6,44 @@ const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  maxAge: 24 * 60 * 60 * 1000
+  maxAge: 24 * 60 * 60 * 1000 
 };
 
 const signupUser = async (req, res) => {
   try {
     const { username, email, password, address } = req.body;
 
-  
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+ 
+    if (await User.findOne({ email })) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-   
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-   
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
-      address,
+    const newUser = await User.create({ 
+      username, 
+      email, 
+      password, 
+      address 
     });
 
-    await newUser.save();
-
- 
+   
     const token = jwt.sign(
       { id: newUser._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: '1d' }
     );
 
- 
+    
     res.cookie('jwt', token, cookieOptions);
-
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User created successfully',
-      user: {
-        id: newUser._id,
-        username: newUser.username,
-        email: newUser.email
-      }
+      user: newUser.toJSON() 
     });
 
   } catch (error) {
     res.status(500).json({ 
       message: 'Signup error', 
-      error: error.message 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -65,62 +52,42 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-
-    const user = await User.findOne({ email });
+  
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid credentials' }); 
     }
 
    
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+    if (!(await user.comparePassword(password))) {
+      return res.status(401).json({ message: 'Invalid credentials' }); 
     }
 
-
+   
     const token = jwt.sign(
       { id: user._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: '1d' }
     );
 
- 
+   
     res.cookie('jwt', token, cookieOptions);
-
     res.json({
       message: 'Login successful',
-      token, 
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      }
+      user: user.toJSON() 
     });
 
   } catch (error) {
     res.status(500).json({ 
-      message: 'Login error', 
-      error: error.message 
+      message: 'Login error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
 const logoutUser = (req, res) => {
- 
   res.clearCookie('jwt');
-  
-  
-  if (req.session) {
-    req.session.destroy(err => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Logout failed' });
-      }
-      res.clearCookie('connect.sid');
-    });
-  }
-  
-  res.json({ message: 'User logged out successfully' });
+  res.json({ message: 'Logged out successfully' });
 };
 
 module.exports = {
