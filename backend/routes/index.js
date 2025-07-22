@@ -14,17 +14,14 @@ router.use('/users', userRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
-router.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to Our E-Commerce API',
-    version: '1.0',
-    docs: 'https://docs.your-api.com' 
-    
-  });
+
+
+router.get('/home', (req, res) => {
+ 
+
 });
 
+router.get('/api/test', (req, res) =>
+     res.json({ message: "works!"}));
 
 module.exports = router;
-
-
-

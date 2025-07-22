@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const helmet = require("helmet");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -7,7 +8,6 @@ const cookieParser = require("cookie-parser");
 const compression = require("compression");
 const morgan = require("morgan");
 
-const mongoose = require("mongoose");
 const sanitizeMiddleware = require ('./middleware/sanitize')
 
 const session = require("express-session");
@@ -71,12 +71,6 @@ app.use(morgan('dev'));
 app.use('/api', apiRouter);
 
 
-console.log('Registered routes:');
-app._router.stack.forEach(layer => {
-  if (layer.route) {
-    console.log(`${layer.route.stack[0].method} ${layer.route.path}`);
-  }
-});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

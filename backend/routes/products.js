@@ -6,15 +6,22 @@ const {
   getProductById,
   updateProduct,
   deleteProduct
-} = require('../controllers/productController')
+} = require('../controllers/productController');
+const { protect } = require('../utils/jwt'); // Only import what exists
 
-// method-GET-PUT | ETC --->/api/products 
+// GET /api/products (public)
+router.get('/', getAllProducts);
 
-router.get('/',createProduct)
-router.get('/',getAllProducts)
-router.get('/:id',getProductById)
-router.get('/:id',updateProduct)
-router.get('/:id',deleteProduct)
+// POST /api/products (protected only)
+router.post('/', protect, createProduct); // Removed admin
 
+// GET /api/products/:id (public)
+router.get('/:id', getProductById);
+
+// PUT /api/products/:id (protected only)
+router.put('/:id', protect, updateProduct); // Removed admin
+
+// DELETE /api/products/:id (protected only)
+router.delete('/:id', protect, deleteProduct); // Removed admin
 
 module.exports = router;
