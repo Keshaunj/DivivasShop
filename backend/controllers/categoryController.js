@@ -1,4 +1,4 @@
-const Category = require('../models/category');
+const Category = require('../controllers/userControllers');
 
 
 const getAllCategories = async (req, res) => {

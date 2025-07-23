@@ -17,11 +17,11 @@ router.use('/orders', orderRoutes);
 
 
 router.get('/home', (req, res) => {
- 
+ res.json ({message:"working!"})
 
 });
 
-router.get('/api/test', (req, res) =>
+router.get('/test', (req, res) =>
      res.json({ message: "works!"}));
 
 module.exports = router;
