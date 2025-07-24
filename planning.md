@@ -91,3 +91,9 @@ Backend powered by Node.js/Express and MongoDB with user authentication.
 
 ---
 
+# Development Configurations 
+-  Backend
+cd backend && npm run dev
+
+- Frontend
+cd frontend && npm run dev
