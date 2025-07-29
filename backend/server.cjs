@@ -59,13 +59,14 @@ app.use(
   })
 );
 
+app.use(morgan);
 app.use(express.json());
 app.use(cookieParser());
 app.use(sanitizeMiddleware);
 
 app.use(helmet());
 app.use(compression());
-app.use(morgan('dev'));
+
 
 
 app.use('/api', apiRouter);
