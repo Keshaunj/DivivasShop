@@ -1,27 +1,28 @@
 const express = require('express');
 const router = express.Router();
 
-
-const authRouter = require('./auth');
+const authRoutes = require('./auth');
 const userRoutes = require('./users');
 const productRoutes = require('./products');
 const categoryRoutes = require('./categories');
 const orderRoutes = require('./orders');
+const cartRoutes = require('./cart');
+const adminRoutes = require('./admin');
 
-
-router.use('/auth', authRouter);
+// Mount routes
+router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
-
+router.use('/cart', cartRoutes);
+router.use('/admin', adminRoutes);
 
 router.get('/home', (req, res) => {
- res.json ({message:"working!"})
-
+  res.json({
+    message: "Welcome to Divias Wicka Shop!",
+    // Add more dashboard data here as needed
+  });
 });
-
-router.get('/test', (req, res) =>
-     res.json({ message: "works!"}));
 
 module.exports = router;

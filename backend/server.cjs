@@ -59,7 +59,7 @@ app.use(
   })
 );
 
-app.use(morgan);
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(cookieParser());
 app.use(sanitizeMiddleware);

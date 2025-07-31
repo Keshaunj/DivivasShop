@@ -3,7 +3,28 @@ const Product = require('../models/products');
 
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find().populate('category');
+    const { category } = req.query;
+    
+    // Build filter object
+    let filter = {};
+    
+    // If category is provided, filter by category
+    if (category) {
+      // Find category by name (case-insensitive)
+      const Category = require('../models/categories');
+      const categoryDoc = await Category.findOne({ 
+        name: { $regex: new RegExp(category, 'i') } 
+      });
+      
+      if (categoryDoc) {
+        filter.category = categoryDoc._id;
+      } else {
+        // If category not found, return empty array
+        return res.json([]);
+      }
+    }
+    
+    const products = await Product.find(filter).populate('category');
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch products' });
