@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../utils/jwt');
+const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
 const {
   isAdmin,
   getDashboardStats,

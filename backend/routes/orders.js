@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
-const { protect } = require('../utils/jwt');
+const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
 
-router.use(protect); // Protect all routes
+router.use(authenticateToken); // Protect all routes
 
 // GET /api/orders (user's orders only)
 router.get('/', async (req, res) => {

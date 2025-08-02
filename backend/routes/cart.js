@@ -8,10 +8,10 @@ const {
   clearCart,
   checkout
 } = require('../controllers/cartController');
-const { protect } = require('../utils/jwt');
+const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
 
 // All cart routes require authentication
-router.use(protect);
+router.use(authenticateToken);
 
 // GET /api/cart - Get user's cart
 router.get('/', getCart);

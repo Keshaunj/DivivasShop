@@ -10,7 +10,7 @@ const {
   validateSignup,
   validateLogin
 } = require('../middleware/validation');
-const { authenticateToken } = require('../utils/jwt');
+const { authenticateToken } = require('../utils/authentication/jwt');
 
 // POST /api/auth/signup
 router.post('/signup', validateSignup, signupUser);

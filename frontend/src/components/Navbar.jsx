@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
 
 const categories = [
   { name: 'Candles', path: '/candles' },
@@ -12,6 +13,7 @@ const categories = [
 export default function Navbar() {
   const navigate = useNavigate();
   const { user, login, signup, logout, isAuthenticated } = useAuth();
+  const { cartCount } = useCart();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -244,7 +246,7 @@ export default function Navbar() {
               </svg>
               {/* Cart Badge (optional) */}
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                0
+                {cartCount}
               </span>
             </button>
           </div>

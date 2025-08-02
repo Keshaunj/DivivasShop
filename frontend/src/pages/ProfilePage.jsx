@@ -13,6 +13,8 @@ const ProfilePage = () => {
 
   // User data state
   const [userData, setUserData] = useState({
+    firstName: '',
+    lastName: '',
     username: '',
     email: '',
     address: {
@@ -27,6 +29,8 @@ const ProfilePage = () => {
   });
 
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     username: '',
     email: '',
     address: {
@@ -41,27 +45,52 @@ const ProfilePage = () => {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
+    const checkAuthentication = () => {
+      if (!isAuthenticated) {
+        navigate('/');
+        return;
+      }
+    };
+    checkAuthentication();
   }, [isAuthenticated, navigate]);
+
+  // Debug info in console
+  useEffect(() => {
+    const logDebugInfo = () => {
+      console.log('ProfilePage Debug Info:');
+      console.log('- Is Editing:', isEditing);
+      console.log('- Is Loading:', isLoading);
+      console.log('- Is Authenticated:', isAuthenticated);
+      console.log('- Form Data:', formData);
+      console.log('- User Data:', userData);
+      console.log('- Auth User:', user);
+    };
+    logDebugInfo();
+  }, [isEditing, isLoading, isAuthenticated, formData, userData, user]);
 
   // Load user data on component mount
   useEffect(() => {
-    if (isAuthenticated) {
-      loadUserProfile();
-    }
+    const initializeUserData = () => {
+      if (isAuthenticated) {
+        loadUserProfile();
+      }
+    };
+    initializeUserData();
   }, [isAuthenticated]);
 
   const loadUserProfile = async () => {
     try {
       setIsLoading(true);
+      console.log('Loading user profile...');
+      
       const profileData = await userAPI.getProfile();
+      console.log('Profile data received:', profileData);
       
       // Transform backend data to match our form structure
       const transformedData = {
-        username: profileData.username || '',
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        username: profileData.username || profileData.email || '', // Use username, fallback to email
         email: profileData.email || '',
         address: {
           street: profileData.address?.street || '',
@@ -74,11 +103,33 @@ const ProfilePage = () => {
         dateJoined: profileData.createdAt || new Date().toISOString()
       };
 
+      console.log('Transformed data:', transformedData);
       setUserData(transformedData);
       setFormData(transformedData);
     } catch (error) {
+      console.error('Error loading profile:', error);
       const errorInfo = handleAPIError(error);
       setMessage(errorInfo.message);
+      
+      // Set default data if loading fails - use auth context user data
+      const defaultData = {
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        username: user?.username || user?.email || '',
+        email: user?.email || '',
+        address: {
+          street: user?.address?.street || '',
+          city: user?.address?.city || '',
+          state: user?.address?.state || '',
+          zipCode: user?.address?.zip || '',
+          country: user?.address?.country || ''
+        },
+        phone: user?.phone || '',
+        dateJoined: user?.createdAt || new Date().toISOString()
+      };
+      console.log('Using default data:', defaultData);
+      setUserData(defaultData);
+      setFormData(defaultData);
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +137,8 @@ const ProfilePage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    console.log('Input change:', name, value);
+    
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -110,6 +163,8 @@ const ProfilePage = () => {
     try {
       // Transform form data to match backend structure
       const updateData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         username: formData.username,
         email: formData.email,
         phone: formData.phone,
@@ -194,7 +249,10 @@ const ProfilePage = () => {
             <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
             {!isEditing ? (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  console.log('Enabling edit mode');
+                  setIsEditing(true);
+                }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 Edit Profile
@@ -202,13 +260,19 @@ const ProfilePage = () => {
             ) : (
               <div className="space-x-3">
                 <button
-                  onClick={handleCancel}
+                  onClick={() => {
+                    console.log('Canceling edit mode');
+                    handleCancel();
+                  }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSave}
+                  onClick={() => {
+                    console.log('Saving changes');
+                    handleSave();
+                  }}
                   disabled={isSaving}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
@@ -219,6 +283,42 @@ const ProfilePage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* First Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                First Name
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                }`}
+                placeholder="Enter your first name"
+              />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                }`}
+                placeholder="Enter your last name"
+              />
+            </div>
+
             {/* Username */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -230,7 +330,10 @@ const ProfilePage = () => {
                 value={formData.username}
                 onChange={handleInputChange}
                 disabled={!isEditing}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                }`}
+                placeholder="Enter your username"
               />
             </div>
 
@@ -245,7 +348,10 @@ const ProfilePage = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 disabled={!isEditing}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                }`}
+                placeholder="Enter your email"
               />
             </div>
 
@@ -260,7 +366,10 @@ const ProfilePage = () => {
                 value={formData.phone}
                 onChange={handleInputChange}
                 disabled={!isEditing}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                }`}
+                placeholder="Enter your phone number"
               />
             </div>
 
@@ -292,7 +401,10 @@ const ProfilePage = () => {
                   value={formData.address.street}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                  }`}
+                  placeholder="Enter your street address"
                 />
               </div>
 
@@ -306,7 +418,10 @@ const ProfilePage = () => {
                   value={formData.address.city}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                  }`}
+                  placeholder="Enter your city"
                 />
               </div>
 
@@ -320,7 +435,10 @@ const ProfilePage = () => {
                   value={formData.address.state}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                  }`}
+                  placeholder="Enter your state"
                 />
               </div>
 
@@ -334,7 +452,10 @@ const ProfilePage = () => {
                   value={formData.address.zipCode}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                  }`}
+                  placeholder="Enter your ZIP code"
                 />
               </div>
 
@@ -348,7 +469,10 @@ const ProfilePage = () => {
                   value={formData.address.country}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !isEditing ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'
+                  }`}
+                  placeholder="Enter your country"
                 />
               </div>
             </div>

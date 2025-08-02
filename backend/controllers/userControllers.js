@@ -6,7 +6,7 @@ const getUserDashboard = (req,res) => {
     res.json({
         message: 'Welcome to your Dashboard',
         user: {
-            id: req.userser?.id || '',
+            id: req.user?._id || '',
             username: req.user?.username || ''
         }
     });
@@ -14,13 +14,23 @@ const getUserDashboard = (req,res) => {
 
 const updateUserProfile = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const updates = req.body;
-    delete updates.password; 
+    delete updates.password; // Don't allow password updates through this route
 
-    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
+    // Only allow specific fields to be updated
+    const allowedUpdates = {
+      firstName: updates.firstName,
+      lastName: updates.lastName,
+      username: updates.username,
+      email: updates.email,
+      phone: updates.phone,
+      address: updates.address
+    };
+
+    const updatedUser = await User.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
 
     res.json(updatedUser);
@@ -31,7 +41,7 @@ const updateUserProfile = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const user = await User.findById(userId).select('-password'); 
@@ -45,7 +55,7 @@ const getUserProfile = async (req, res) => {
 
 const changeUserPassword = async (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  const userId = req.user?.id;
+  const userId = req.user?._id;
 
   try {
     const user = await User.findById(userId);
@@ -67,7 +77,7 @@ const changeUserPassword = async (req, res) => {
 
 const deleteUserAccount = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id;
     const deleted = await User.findByIdAndDelete(userId);
     if (!deleted) return res.status(404).json({ message: 'User not found' });
 
@@ -79,7 +89,7 @@ const deleteUserAccount = async (req, res) => {
 
 const addAddress = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id;
     const { street, city, state, zip, country } = req.body;
 
     const user = await User.findById(userId);
@@ -100,7 +110,7 @@ const addAddress = async (req, res) => {
 
 const updateAddress = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id;
     const { street, city, state, zip, country } = req.body;
 
     const user = await User.findById(userId);

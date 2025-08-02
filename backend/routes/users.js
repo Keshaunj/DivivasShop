@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../utils/jwt');
+const { authenticateToken } = require('../utils/authentication/jwt');
 const {
   getUserDashboard,
   getUserProfile,
@@ -11,7 +11,7 @@ const {
   updateAddress
 } = require('../controllers/userControllers');
 
-router.use(protect); // Protect all routes
+router.use(authenticateToken); // Protect all routes
 
 // GET /api/users/dashboard
 router.get('/dashboard', getUserDashboard);

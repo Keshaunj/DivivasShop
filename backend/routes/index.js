@@ -8,6 +8,7 @@ const categoryRoutes = require('./categories');
 const orderRoutes = require('./orders');
 const cartRoutes = require('./cart');
 const adminRoutes = require('./admin');
+const businessOwnerRoutes = require('./businessOwners');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -17,6 +18,7 @@ router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
 router.use('/cart', cartRoutes);
 router.use('/admin', adminRoutes);
+router.use('/business-owners', businessOwnerRoutes);
 
 router.get('/home', (req, res) => {
   res.json({

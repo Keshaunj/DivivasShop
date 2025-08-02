@@ -7,21 +7,21 @@ const {
   updateProduct,
   deleteProduct
 } = require('../controllers/productController');
-const { protect } = require('../utils/jwt'); // Only import what exists
+const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
 
 // GET /api/products (public)
 router.get('/', getAllProducts);
 
 // POST /api/products (protected only)
-router.post('/', protect, createProduct); // Removed admin
+router.post('/', authenticateToken, createProduct); // Updated middleware name
 
 // GET /api/products/:id (public)
 router.get('/:id', getProductById);
 
 // PUT /api/products/:id (protected only)
-router.put('/:id', protect, updateProduct); // Removed admin
+router.put('/:id', authenticateToken, updateProduct); // Updated middleware name
 
 // DELETE /api/products/:id (protected only)
-router.delete('/:id', protect, deleteProduct); // Removed admin
+router.delete('/:id', authenticateToken, deleteProduct); // Updated middleware name
 
 module.exports = router;

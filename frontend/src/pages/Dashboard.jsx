@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../contexts/CartContext';
 import ProductGrid from '../components/ProductGrid';
 import CartModal from '../components/CartModal';
 import { productsAPI, handleAPIError } from '../services/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
-  const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,43 +63,14 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddToCart = (product) => {
-    const existingItem = cartItems.find(item => item._id === product._id);
-    
-    if (existingItem) {
-      setCartItems(cartItems.map(item => 
-        item._id === product._id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCartItems([...cartItems, { ...product, quantity: 1 }]);
-    }
-    
+  const handleAddToCart = async (product) => {
+    await addToCart(product, 1);
     setIsCartOpen(true);
   };
 
-  const handleUpdateQuantity = (productId, newQuantity) => {
-    if (newQuantity <= 0) {
-      setCartItems(cartItems.filter(item => item._id !== productId));
-    } else {
-      setCartItems(cartItems.map(item => 
-        item._id === productId 
-          ? { ...item, quantity: newQuantity }
-          : item
-      ));
-    }
-  };
-
-  const handleRemoveItem = (productId) => {
-    setCartItems(cartItems.filter(item => item._id !== productId));
-  };
-
   const handleCheckout = () => {
-    // Navigate to checkout page or open checkout modal
-    console.log('Proceeding to checkout...');
     setIsCartOpen(false);
-    // Add navigation logic here
+    navigate('/cart');
   };
 
   if (loading) {
@@ -179,9 +151,6 @@ const Dashboard = () => {
       <CartModal
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        cartItems={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
         onCheckout={handleCheckout}
       />
     </div>

@@ -47,7 +47,10 @@ const limiter = rateLimit({
 
 app.use(
   cors({
-    // origin: "https://your-frontend-domian.com"
+    origin: "http://localhost:5173", // Your frontend URL
+    credentials: true, // Allow cookies/credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
   })
 );
 
