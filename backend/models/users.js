@@ -5,8 +5,9 @@ const sanitize = require('mongoose-sanitize');
 const userSchema = new mongoose.Schema({
   username: { 
     type: String, 
-    required: true,
-    trim: true
+    required: false, // Make username optional
+    trim: true,
+    default: '' // Allow empty string
   },
   firstName: {
     type: String,
@@ -113,14 +114,24 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.pre('save', async function(next) {
+  console.log('Pre-save hook triggered');
+  console.log('Password modified:', this.isModified('password'));
+  console.log('Password field exists:', !!this.password);
+  console.log('Password is string:', typeof this.password === 'string');
 
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {
+    console.log('Password not modified, skipping hash');
+    return next();
+  }
   
   try {
+    console.log('Hashing password with salt rounds: 12');
     const salt = await bcrypt.genSalt(12); 
     this.password = await bcrypt.hash(this.password, salt);
+    console.log('Password hashed successfully, new hash length:', this.password.length);
     next();
   } catch (err) {
+    console.error('Error in pre-save hook:', err);
     next(err);
   }
 });

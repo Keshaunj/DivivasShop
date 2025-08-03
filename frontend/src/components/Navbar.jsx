@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import ForgotPasswordModal from './ForgotPasswordModal';
+import ResetPasswordModal from './ResetPasswordModal';
 
 const categories = [
   { name: 'Candles', path: '/candles' },
@@ -18,6 +20,8 @@ export default function Navbar() {
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const dropdownRef = useRef(null);
@@ -25,7 +29,7 @@ export default function Navbar() {
 
   // Form states
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({ identifier: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({ email: '', username: '', password: '' });
 
   // Close categories dropdown when clicking outside
   useEffect(() => {
@@ -72,11 +76,20 @@ export default function Navbar() {
     setAuthMessage('');
 
     try {
-      const result = await login({
-        username: loginForm.identifier,
-        email: loginForm.identifier,
+      const credentials = {
         password: loginForm.password
-      });
+      };
+
+      // Determine if identifier is email or username
+      const isEmail = loginForm.identifier.includes('@');
+      
+      if (isEmail) {
+        credentials.email = loginForm.identifier.trim();
+      } else {
+        credentials.username = loginForm.identifier.trim();
+      }
+
+      const result = await login(credentials);
 
       if (result.success) {
         setShowLogin(false);
@@ -99,15 +112,21 @@ export default function Navbar() {
     setAuthMessage('');
 
     try {
-      const result = await signup({
-        username: registerForm.identifier,
-        email: registerForm.identifier,
+      const userData = {
+        email: registerForm.email,
         password: registerForm.password
-      });
+      };
+
+      // Only add username if it's provided
+      if (registerForm.username.trim()) {
+        userData.username = registerForm.username.trim();
+      }
+
+      const result = await signup(userData);
 
       if (result.success) {
         setShowRegister(false);
-        setRegisterForm({ identifier: '', password: '' });
+        setRegisterForm({ email: '', username: '', password: '' });
         setAuthMessage(result.message);
         setTimeout(() => setAuthMessage(''), 3000);
       } else {
@@ -278,13 +297,14 @@ export default function Navbar() {
             <h2 className="text-2xl font-bold mb-4 text-center">Welcome Back!</h2>
             <form onSubmit={handleLogin}>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-1" htmlFor="login-identifier">Username or Email</label>
+                <label className="block text-gray-700 mb-1" htmlFor="login-email">Email or Username</label>
                 <input
                   type="text"
-                  id="login-identifier"
+                  id="login-email"
                   value={loginForm.identifier}
                   onChange={(e) => setLoginForm({ ...loginForm, identifier: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Enter your email or username"
                   required
                 />
               </div>
@@ -317,6 +337,15 @@ export default function Navbar() {
                     Sign up here
                   </button>
                 </p>
+                <p className="text-sm text-gray-600">
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:text-blue-800 font-medium"
+                    onClick={() => { setShowLogin(false); setShowForgotPassword(true); }}
+                  >
+                    Forgot Password?
+                  </button>
+                </p>
               </div>
             </form>
           </div>
@@ -340,14 +369,26 @@ export default function Navbar() {
             </p>
             <form onSubmit={handleSignup}>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-1" htmlFor="reg-identifier">Username or Email</label>
+                <label className="block text-gray-700 mb-1" htmlFor="reg-email">Email *</label>
+                <input
+                  type="email"
+                  id="reg-email"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Enter your email address"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-1" htmlFor="reg-username">Username (Optional)</label>
                 <input
                   type="text"
-                  id="reg-identifier"
-                  value={registerForm.identifier}
-                  onChange={(e) => setRegisterForm({ ...registerForm, identifier: e.target.value })}
+                  id="reg-username"
+                  value={registerForm.username}
+                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
-                  required
+                  placeholder="Choose a username (optional)"
                 />
               </div>
               <div className="mb-4">
@@ -384,6 +425,20 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onShowLogin={() => setShowLogin(true)}
+      />
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        isOpen={showResetPassword}
+        onClose={() => setShowResetPassword(false)}
+        onShowLogin={() => setShowLogin(true)}
+      />
     </nav>
   );
 } 

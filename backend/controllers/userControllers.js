@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcryptjs')
 const User = require('../models/users')
 
 const getUserDashboard = (req,res) => {
@@ -19,6 +19,18 @@ const updateUserProfile = async (req, res) => {
 
     const updates = req.body;
     delete updates.password; // Don't allow password updates through this route
+
+    // Check if username is being updated and if it's unique
+    if (updates.username) {
+      const existingUser = await User.findOne({ 
+        username: updates.username, 
+        _id: { $ne: userId } // Exclude current user
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username is already taken. Please choose a different username.' });
+      }
+    }
 
     // Only allow specific fields to be updated
     const allowedUpdates = {
@@ -44,8 +56,10 @@ const getUserProfile = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const user = await User.findById(userId).select('-password'); 
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     res.json(user);
   } catch (error) {
@@ -58,20 +72,58 @@ const changeUserPassword = async (req, res) => {
   const userId = req.user?._id;
 
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    console.log('Password change request for user:', userId);
+    console.log('Old password provided:', !!oldPassword);
+    console.log('New password provided:', !!newPassword);
 
+    // Validate input
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log('User found, has password:', !!user.password);
+
+    // Check if user has a password (for users created without password)
+    if (!user.password) {
+      return res.status(400).json({ message: 'No current password found. Please contact support.' });
+    }
+
+    // Check if current password is correct
     const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Incorrect current password' });
+    console.log('Password match result:', isMatch);
+    
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect. Please try again.' });
+    }
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // Check if new password is different from current password
+    const isNewPasswordSame = await bcrypt.compare(newPassword, user.password);
+    if (isNewPasswordSame) {
+      return res.status(400).json({ message: 'New password must be different from your current password' });
+    }
+
+    // Set the new password (pre-save hook will hash it)
+    console.log('Setting new password, length:', newPassword.length);
+    user.password = newPassword;
 
     await user.save();
+    console.log('Password updated successfully for user:', userId);
+    console.log('New password hash length:', user.password.length);
+    console.log('New password hash starts with $2b$:', user.password.startsWith('$2b$'));
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating password', error: error.message });
+    console.error('Password change error:', error);
+    res.status(500).json({ message: 'Unable to update password. Please try again later.' });
   }
 };
 

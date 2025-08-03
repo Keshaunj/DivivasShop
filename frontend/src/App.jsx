@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import Footer from './components/Footer';
 import BusinessOwnerNotificationModal from './components/business-owner/BusinessOwnerNotificationModal';
+import ResetPasswordModal from './components/ResetPasswordModal';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/reset-password" element={<ResetPasswordModal isOpen={true} onClose={() => window.location.href = '/'} onShowLogin={() => window.location.href = '/'} />} />
                 </Routes>
               </main>
               <Footer />
