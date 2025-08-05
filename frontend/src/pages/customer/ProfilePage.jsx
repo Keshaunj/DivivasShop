@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { userAPI, authAPI, handleAPIError } from '../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { userAPI, authAPI, handleAPIError } from '../../proxyApi/api';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -301,7 +301,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="profile-gradient">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">

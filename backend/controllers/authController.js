@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/users');
 const crypto = require('crypto');
-const { sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/email');
 require('dotenv').config();
 
 const cookieOptions = {
@@ -18,35 +17,40 @@ const signupUser = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // Require email (username is optional)
+    console.log('=== SIGNUP ATTEMPT ===');
+    console.log('Request body:', { username, email, hasPassword: !!password });
+
     if (!email) {
+      console.log('❌ Email is required');
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    // Check if user exists by email or username (if provided)
     const existingUserQuery = { email };
     if (username) {
       existingUserQuery.$or = [{ email }, { username }];
     }
-    
+
+    console.log('Checking for existing user with query:', JSON.stringify(existingUserQuery, null, 2));
+
     if (await User.findOne(existingUserQuery)) {
+      console.log('❌ User already exists');
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    console.log('✅ Creating new user...');
     const newUser = await User.create({ 
       username: username || '', // Use empty string if no username provided
       email: email,
       password
     });
 
-    // Send welcome email
-    try {
-      await sendWelcomeEmail(email, username || email);
-      console.log('Welcome email sent to:', email);
-    } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
-      // Don't fail signup if email fails
-    }
+    console.log('✅ User created successfully:', {
+      id: newUser._id,
+      email: newUser.email,
+      username: newUser.username,
+      hasPassword: !!newUser.password,
+      passwordLength: newUser.password ? newUser.password.length : 0
+    });
 
     const token = jwt.sign(
       { id: newUser._id }, 
@@ -55,12 +59,16 @@ const signupUser = async (req, res) => {
     );
 
     res.cookie('jwt', token, cookieOptions);
+    console.log('✅ Signup successful, token created');
+    console.log('=== SIGNUP SUCCESS ===');
+    
     res.status(201).json({
       message: 'User created successfully',
       user: newUser.toJSON() 
     });
 
   } catch (error) {
+    console.error('❌ Signup error:', error);
     res.status(500).json({ 
       message: 'Signup error', 
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -72,35 +80,47 @@ const loginUser = async (req, res) => {
   try {
     const { email, username, password } = req.body;
 
-    console.log('Login attempt for:', { email, username, hasPassword: !!password });
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Request body:', { email, username, hasPassword: !!password });
+    console.log('Password length:', password ? password.length : 0);
 
     // Require at least one of username or email
     if (!username && !email) {
+      console.log('❌ No username or email provided');
       return res.status(400).json({ message: 'Username or email is required' });
     }
 
     // Find user by email or username
-    const user = await User.findOne({
+    const query = {
       $or: [
         email ? { email } : {},
         username ? { username } : {}
       ]
-    }).select('+password');
+    };
+    console.log('Database query:', JSON.stringify(query, null, 2));
+
+    const user = await User.findOne(query).select('+password');
 
     if (!user) {
-      console.log('User not found for login attempt');
+      console.log('❌ User not found for login attempt');
       return res.status(401).json({ message: 'Invalid credentials' }); 
     }
 
-    console.log('User found, has password:', !!user.password);
-    console.log('Password field length:', user.password ? user.password.length : 0);
-    console.log('Password field starts with $2b$:', user.password ? user.password.startsWith('$2b$') : false);
+    console.log('✅ User found:', {
+      id: user._id,
+      email: user.email,
+      username: user.username,
+      hasPassword: !!user.password,
+      passwordLength: user.password ? user.password.length : 0,
+      passwordStartsWith: user.password ? user.password.substring(0, 7) : 'none'
+    });
 
     const passwordMatch = await user.comparePassword(password);
     console.log('Password comparison result:', passwordMatch);
-    console.log('Input password length:', password.length);
+    console.log('Input password:', password);
 
     if (!passwordMatch) {
+      console.log('❌ Password does not match');
       return res.status(401).json({ message: 'Invalid credentials' }); 
     }
 
@@ -111,14 +131,16 @@ const loginUser = async (req, res) => {
     );
 
     res.cookie('jwt', token, cookieOptions);
-    console.log('Login successful for user:', user._id);
+    console.log('✅ Login successful for user:', user._id);
+    console.log('=== LOGIN SUCCESS ===');
+    
     res.json({
       message: 'Login successful',
       user: user.toJSON() 
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ 
       message: 'Login error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -178,32 +200,13 @@ const requestPasswordReset = async (req, res) => {
     // Create reset URL
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
     
-    // Send real email
-    try {
-      await sendPasswordResetEmail(
-        user.email, 
-        resetUrl, 
-        user.username || user.firstName || 'User'
-      );
-      
-      console.log('Password reset email sent successfully to:', user.email);
-      
-      res.json({ 
-        message: 'If an account with that email exists, a password reset link has been sent.'
-      });
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      
-      // In development, still return the URL if email fails
-      if (process.env.NODE_ENV === 'development') {
-        res.json({ 
-          message: 'Email sending failed, but here is your reset URL for testing:',
-          resetUrl: resetUrl
-        });
-      } else {
-        res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
-      }
-    }
+    // In development, return the URL
+    console.log('Password reset URL:', resetUrl);
+    
+    res.json({ 
+      message: 'If an account with that email exists, a password reset link has been sent.',
+      resetUrl: process.env.NODE_ENV === 'development' ? resetUrl : undefined
+    });
 
   } catch (error) {
     console.error('Password reset request error:', error);

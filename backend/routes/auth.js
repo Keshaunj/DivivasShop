@@ -25,7 +25,7 @@ router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 
 // GET /api/auth/me - Check authentication status
-router.get('/me', getMe);
+router.get('/me', authenticateToken, getMe);
 
 // Password reset routes
 // POST /api/auth/forgot-password

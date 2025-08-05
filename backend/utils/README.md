@@ -1,54 +1,63 @@
 # 🛠️ Backend Utilities
 
-This directory contains utility scripts and services for the Divias Wicka Shop backend.
+This directory contains utility scripts and services for the Divias Wick Shop backend.
 
 ## 📁 Directory Structure
 
 ### `authentication/`
-JWT utilities for user authentication:
+JWT utilities for authentication:
 - `jwt.js` - User JWT functions
 - `businessOwnerJWT.js` - Business owner JWT functions
 
-### `email/`
-Email services and templates:
-- `emailService.js` - Gmail SMTP integration
-- `index.js` - Clean export interface
-- `EMAIL_SETUP.md` - Gmail configuration guide
-- `README.md` - Email utilities documentation
+### `debug/`
+Development debugging tools:
+- `debug-auth.js` - Authentication system testing
+- `README.md` - Debug tools documentation
 
 ### `management/`
 Console-based management scripts:
-- `userAdminManager.js` - User admin/subscription management
-- `businessOwnerManager.js` - Business owner management
+- `businessOwnerManager.js` - Business owner management and super admin operations
+- `make-business-admin.js` - Convert user to business owner
 
 ### `notifications/`
 Notification sending utilities:
 - `userNotificationManager.js` - Customer notifications
 - `businessOwnerNotificationManager.js` - Business owner notifications
 
-### `businessNotifications/`
-Business owner notification components (legacy)
+### Root Level Scripts
+- `register-business-owner.js` - Interactive business owner creation
+- `resetPassword.js` - Emergency password reset
+- `deleteUser.js` - Emergency user deletion
 
 ## 🚀 Quick Start
 
 ```bash
-# Make a user admin
-node utils/management/userAdminManager.js user@example.com
+# Create new business owner (interactive)
+node register-business-owner.js
+
+# Make existing user a business owner
+node utils/management/make-business-admin.js
 
 # Send business owner notification
 node utils/notifications/businessOwnerNotificationManager.js
 
 # Reset user password (emergency)
 node utils/resetPassword.js user@example.com newpassword
+
+# Debug authentication system
+node utils/debug/debug-auth.js
 ```
-
-## 📧 Email Setup
-
-For email functionality, see `email/EMAIL_SETUP.md` for Gmail SMTP configuration.
 
 ## 🔐 Admin Documentation
 
-Detailed admin utilities documentation is in `admin.md` (private).
+Detailed admin utilities documentation is in `ADMIN_COMMANDS.md` in the backend root.
+
+## 🏗️ Platform Architecture
+
+This is a multi-tenant e-commerce platform where:
+- **Super Admins** manage multiple storefronts
+- **Business Owners** manage individual storefronts  
+- **Customers** shop across different storefronts
 
 ---
 

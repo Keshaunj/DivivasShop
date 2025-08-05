@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import ProductGrid from '../components/ProductGrid';
-import CartModal from '../components/CartModal';
+import ProductGrid from '../../components/ProductGrid';
+import CartModal from '../../components/CartModal';
 
 const GiftSetsPage = () => {
   const [products, setProducts] = useState([]);

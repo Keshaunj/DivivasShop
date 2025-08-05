@@ -1,75 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import ProductGrid from '../components/ProductGrid';
-import CartModal from '../components/CartModal';
+import ProductGrid from '../../components/ProductGrid';
+import CartModal from '../../components/CartModal';
 
-const AccessoriesPage = () => {
+const CandlesPage = () => {
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Mock accessories data - replace with API call
+  // Mock candle data - replace with API call
   useEffect(() => {
-    const mockAccessories = [
+    const mockCandles = [
       {
-        _id: 'a1',
-        name: 'Glass Candle Holder',
-        description: 'Elegant glass holder for tea lights',
-        price: 15.99,
+        _id: 'c1',
+        name: 'Lavender Dream Candle',
+        description: 'Soothing lavender for relaxation',
+        price: 24.99,
         image: '/placeholder-product.jpg'
       },
       {
-        _id: 'a2',
-        name: 'Candle Snuffer',
-        description: 'Brass candle snuffer for safe extinguishing',
-        price: 12.99,
+        _id: 'c2',
+        name: 'Vanilla Comfort Candle',
+        description: 'Warm vanilla for cozy evenings',
+        price: 19.99,
         image: '/placeholder-product.jpg'
       },
       {
-        _id: 'a3',
-        name: 'Decorative Matches',
-        description: 'Long wooden matches with holder',
-        price: 8.99,
-        image: '/placeholder-product.jpg'
-      },
-      {
-        _id: 'a4',
-        name: 'Candle Wick Trimmer',
-        description: 'Professional wick trimming tool',
-        price: 18.99,
-        image: '/placeholder-product.jpg'
-      },
-      {
-        _id: 'a5',
-        name: 'Candle Warmer',
-        description: 'Electric candle warmer plate',
-        price: 29.99,
-        image: '/placeholder-product.jpg'
-      },
-      {
-        _id: 'a6',
-        name: 'Candle Stand',
-        description: 'Metal candle stand for pillar candles',
+        _id: 'c3',
+        name: 'Cinnamon Spice Candle',
+        description: 'Spicy cinnamon for energy',
         price: 22.99,
         image: '/placeholder-product.jpg'
       },
       {
-        _id: 'a7',
-        name: 'Candle Lighter',
-        description: 'Long-reach butane lighter',
-        price: 14.99,
+        _id: 'c4',
+        name: 'Ocean Breeze Candle',
+        description: 'Fresh ocean for clarity',
+        price: 26.99,
         image: '/placeholder-product.jpg'
       },
       {
-        _id: 'a8',
-        name: 'Candle Storage Box',
-        description: 'Wooden storage box for candles',
-        price: 34.99,
+        _id: 'c5',
+        name: 'Rose Romance Candle',
+        description: 'Romantic rose for love',
+        price: 28.99,
+        image: '/placeholder-product.jpg'
+      },
+      {
+        _id: 'c6',
+        name: 'Pine Forest Candle',
+        description: 'Natural pine for grounding',
+        price: 21.99,
+        image: '/placeholder-product.jpg'
+      },
+      {
+        _id: 'c7',
+        name: 'Citrus Sunrise Candle',
+        description: 'Refreshing citrus for mornings',
+        price: 23.99,
+        image: '/placeholder-product.jpg'
+      },
+      {
+        _id: 'c8',
+        name: 'Sage Purification Candle',
+        description: 'Purifying sage for cleansing',
+        price: 25.99,
         image: '/placeholder-product.jpg'
       }
     ];
     
-    setProducts(mockAccessories);
+    setProducts(mockCandles);
     setLoading(false);
   }, []);
 
@@ -123,8 +123,8 @@ const AccessoriesPage = () => {
       {/* Page Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900">Accessories</h1>
-          <p className="text-gray-600 mt-2">Essential accessories for your candle experience</p>
+          <h1 className="text-3xl font-bold text-gray-900">Candles</h1>
+          <p className="text-gray-600 mt-2">Discover our collection of handcrafted candles</p>
         </div>
       </div>
 
@@ -146,4 +146,4 @@ const AccessoriesPage = () => {
   );
 };
 
-export default AccessoriesPage; 
+export default CandlesPage; 

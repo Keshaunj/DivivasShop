@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../contexts/CartContext';
-import ProductGrid from '../components/ProductGrid';
-import CartModal from '../components/CartModal';
-import { productsAPI, handleAPIError } from '../services/api';
+import { useCart } from '../../contexts/CartContext';
+import ProductGrid from '../../components/ProductGrid';
+import CartModal from '../../components/CartModal';
+import { productsAPI, handleAPIError } from '../../proxyApi/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -101,37 +101,42 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* New User Call-to-Action */}
-      <div className="bg-white py-12 border-b">
+      {/* Placeholder Products Section */}
+      <div className="bg-gray-100 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              New to Divias Wicka Shop?
-            </h2>
-            <p className="text-lg text-gray-600 mb-6 max-w-2xl mx-auto">
-              Create a free account to save your favorite candles, track your orders, and get exclusive offers!
-            </p>
-            <div className="flex justify-center space-x-4">
-              <button 
-                onClick={() => navigate('/shop')}
-                className="px-6 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-              >
-                Browse Without Account
-              </button>
-              <button 
-                onClick={() => {
-                  // This would trigger the sign up modal
-                  // For now, we'll navigate to a signup page or show modal
-                  console.log('Open signup modal');
-                }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Create Free Account
-              </button>
+          <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Quick Preview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Placeholder Product 1 */}
+            <div className="bg-black rounded-lg p-6 text-white text-center">
+              <div className="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-4"></div>
+              <h3 className="font-semibold mb-2">Lavender Dreams</h3>
+              <p className="text-gray-300 text-sm mb-3">Relaxing evening scent</p>
+              <p className="text-xl font-bold">$24.99</p>
             </div>
-            <p className="text-sm text-gray-500 mt-4">
-              ✓ No credit card required • ✓ Free shipping on orders over $50 • ✓ Easy returns
-            </p>
+
+            {/* Placeholder Product 2 */}
+            <div className="bg-black rounded-lg p-6 text-white text-center">
+              <div className="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-4"></div>
+              <h3 className="font-semibold mb-2">Vanilla Sunset</h3>
+              <p className="text-gray-300 text-sm mb-3">Warm comfort aroma</p>
+              <p className="text-xl font-bold">$19.99</p>
+            </div>
+
+            {/* Placeholder Product 3 */}
+            <div className="bg-black rounded-lg p-6 text-white text-center">
+              <div className="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-4"></div>
+              <h3 className="font-semibold mb-2">Ocean Breeze</h3>
+              <p className="text-gray-300 text-sm mb-3">Fresh coastal vibes</p>
+              <p className="text-xl font-bold">$26.99</p>
+            </div>
+
+            {/* Placeholder Product 4 */}
+            <div className="bg-black rounded-lg p-6 text-white text-center">
+              <div className="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-4"></div>
+              <h3 className="font-semibold mb-2">Cinnamon Spice</h3>
+              <p className="text-gray-300 text-sm mb-3">Holiday warmth</p>
+              <p className="text-xl font-bold">$22.99</p>
+            </div>
           </div>
         </div>
       </div>

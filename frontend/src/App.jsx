@@ -3,17 +3,16 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { BusinessOwnerNotificationProvider } from './contexts/business-owner/BusinessOwnerNotificationContext';
 import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
-import ShopPage from './pages/ShopPage';
-import CandlesPage from './pages/CandlesPage';
-import AccessoriesPage from './pages/AccessoriesPage';
-import GiftSetsPage from './pages/GiftSetsPage';
-import CartPage from './pages/CartPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminDashboard from './pages/AdminDashboard';
+import Dashboard from './pages/customer/Dashboard';
+import ShopPage from './pages/customer/ShopPage';
+import CandlesPage from './pages/customer/CandlesPage';
+import AccessoriesPage from './pages/customer/AccessoriesPage';
+import GiftSetsPage from './pages/customer/GiftSetsPage';
+import CartPage from './pages/customer/CartPage';
+import ProfilePage from './pages/customer/ProfilePage';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import Footer from './components/Footer';
 import BusinessOwnerNotificationModal from './components/business-owner/BusinessOwnerNotificationModal';
-import ResetPasswordModal from './components/ResetPasswordModal';
 
 export default function App() {
   return (
@@ -33,7 +32,6 @@ export default function App() {
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/reset-password" element={<ResetPasswordModal isOpen={true} onClose={() => window.location.href = '/'} onShowLogin={() => window.location.href = '/'} />} />
                 </Routes>
               </main>
               <Footer />

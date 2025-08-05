@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { productsAPI, handleAPIError } from '../../services/api';
+import { productsAPI, handleAPIError } from '../../proxyApi/api';
 
 const AdminProductManager = () => {
   const [products, setProducts] = useState([]);

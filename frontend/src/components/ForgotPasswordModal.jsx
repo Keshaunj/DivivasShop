@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI } from '../proxyApi/api';
 
 const ForgotPasswordModal = ({ isOpen, onClose, onShowLogin }) => {
   const [email, setEmail] = useState('');
@@ -16,6 +16,11 @@ const ForgotPasswordModal = ({ isOpen, onClose, onShowLogin }) => {
       const response = await authAPI.requestPasswordReset(email);
       setIsSuccess(true);
       setMessage(response.message);
+      
+      // In development, show the reset URL
+      if (response.resetUrl) {
+        setMessage(`${response.message} Reset URL: ${response.resetUrl}`);
+      }
     } catch (error) {
       setIsSuccess(false);
       setMessage(error.message || 'Failed to send reset email. Please try again.');

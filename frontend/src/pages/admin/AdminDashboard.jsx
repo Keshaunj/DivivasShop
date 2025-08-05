@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import AdminProductManager from '../components/admin/AdminProductManager';
+import { useAuth } from '../../contexts/AuthContext';
+import AdminProductManager from '../../components/admin/AdminProductManager';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { cartAPI } from '../services/api';
+import { cartAPI } from '../proxyApi/api';
 
 const CartContext = createContext();
 

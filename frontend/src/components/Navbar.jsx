@@ -2,8 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import ForgotPasswordModal from './ForgotPasswordModal';
-import ResetPasswordModal from './ResetPasswordModal';
 
 const categories = [
   { name: 'Candles', path: '/candles' },
@@ -20,8 +18,7 @@ export default function Navbar() {
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const dropdownRef = useRef(null);
@@ -30,6 +27,12 @@ export default function Navbar() {
   // Form states
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ email: '', username: '', password: '' });
+  const [changePasswordForm, setChangePasswordForm] = useState({ 
+    identifier: '', 
+    currentPassword: '', 
+    newPassword: '', 
+    confirmPassword: '' 
+  });
 
   // Close categories dropdown when clicking outside
   useEffect(() => {
@@ -110,20 +113,12 @@ export default function Navbar() {
     e.preventDefault();
     setAuthLoading(true);
     setAuthMessage('');
-
     try {
-      const userData = {
-        email: registerForm.email,
-        password: registerForm.password
-      };
-
-      // Only add username if it's provided
+      const userData = { email: registerForm.email, password: registerForm.password };
       if (registerForm.username.trim()) {
         userData.username = registerForm.username.trim();
       }
-
       const result = await signup(userData);
-
       if (result.success) {
         setShowRegister(false);
         setRegisterForm({ email: '', username: '', password: '' });
@@ -134,6 +129,63 @@ export default function Navbar() {
       }
     } catch (error) {
       setAuthMessage('Signup failed. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage('');
+
+    // Validation
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      setAuthMessage('New passwords do not match');
+      setAuthLoading(false);
+      return;
+    }
+
+    if (changePasswordForm.newPassword.length < 6) {
+      setAuthMessage('New password must be at least 6 characters');
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      // First, login to verify current credentials
+      const credentials = { password: changePasswordForm.currentPassword };
+      const isEmail = changePasswordForm.identifier.includes('@');
+      
+      if (isEmail) {
+        credentials.email = changePasswordForm.identifier.trim();
+      } else {
+        credentials.username = changePasswordForm.identifier.trim();
+      }
+
+      // Try to login first to verify current password
+      const loginResult = await login(credentials);
+      
+      if (!loginResult.success) {
+        setAuthMessage('Current password is incorrect');
+        setAuthLoading(false);
+        return;
+      }
+
+      // If login successful, change password
+      const { userAPI } = await import('../proxyApi/api');
+      await userAPI.changePassword({
+        oldPassword: changePasswordForm.currentPassword,
+        newPassword: changePasswordForm.newPassword
+      });
+
+      setShowChangePassword(false);
+      setChangePasswordForm({ identifier: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+      setAuthMessage('Password changed successfully!');
+      setTimeout(() => setAuthMessage(''), 3000);
+      
+    } catch (error) {
+      setAuthMessage(error.message || 'Failed to change password. Please try again.');
     } finally {
       setAuthLoading(false);
     }
@@ -341,9 +393,9 @@ export default function Navbar() {
                   <button
                     type="button"
                     className="text-blue-600 hover:text-blue-800 font-medium"
-                    onClick={() => { setShowLogin(false); setShowForgotPassword(true); }}
+                    onClick={() => { setShowLogin(false); setShowChangePassword(true); }}
                   >
-                    Forgot Password?
+                    Change Password
                   </button>
                 </p>
               </div>
@@ -426,19 +478,93 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* Forgot Password Modal */}
-      <ForgotPasswordModal
-        isOpen={showForgotPassword}
-        onClose={() => setShowForgotPassword(false)}
-        onShowLogin={() => setShowLogin(true)}
-      />
-
-      {/* Reset Password Modal */}
-      <ResetPasswordModal
-        isOpen={showResetPassword}
-        onClose={() => setShowResetPassword(false)}
-        onShowLogin={() => setShowLogin(true)}
-      />
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              onClick={() => { setShowChangePassword(false); setChangePasswordForm({ identifier: '', currentPassword: '', newPassword: '', confirmPassword: '' }); }}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <h2 className="text-2xl font-bold mb-4 text-center">Change Password</h2>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Enter your current credentials and choose a new password
+            </p>
+            <form onSubmit={handleChangePassword}>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-1" htmlFor="change-identifier">Email or Username</label>
+                <input
+                  type="text"
+                  id="change-identifier"
+                  value={changePasswordForm.identifier}
+                  onChange={(e) => setChangePasswordForm({ ...changePasswordForm, identifier: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Enter your email or username"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-1" htmlFor="change-current-password">Current Password</label>
+                <input
+                  type="password"
+                  id="change-current-password"
+                  value={changePasswordForm.currentPassword}
+                  onChange={(e) => setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Enter your current password"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-1" htmlFor="change-new-password">New Password</label>
+                <input
+                  type="password"
+                  id="change-new-password"
+                  value={changePasswordForm.newPassword}
+                  onChange={(e) => setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Enter your new password"
+                  required
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block text-gray-700 mb-1" htmlFor="change-confirm-password">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="change-confirm-password"
+                  value={changePasswordForm.confirmPassword}
+                  onChange={(e) => setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                  placeholder="Confirm your new password"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition"
+              >
+                {authLoading ? 'Changing Password...' : 'Change Password'}
+              </button>
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-600">
+                  Remember your password?{' '}
+                  <button
+                    type="button"
+                    className="text-blue-600 hover:text-blue-800 font-medium"
+                    onClick={() => { setShowChangePassword(false); setShowLogin(true); }}
+                  >
+                    Log in here
+                  </button>
+                </p>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </nav>
   );
 } 
