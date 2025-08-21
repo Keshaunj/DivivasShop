@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
+const { isAdmin } = require('../middleware/permissions'); // Use new permission middleware
 const {
-  isAdmin,
   getDashboardStats,
   getAllProducts,
   addProduct,
@@ -15,7 +15,12 @@ const {
   getAllOrders,
   updateOrderStatus,
   getAllUsers,
-  updateUserRole
+  updateUserRole,
+  inviteAdmin,
+  updateUserPermissions,
+  removeAdminRole,
+  getAdminInvites,
+  cancelAdminInvite
 } = require('../controllers/adminController');
 
 // Apply authentication and admin middleware to all routes
@@ -44,5 +49,12 @@ router.put('/orders/:id/status', updateOrderStatus);
 // Users
 router.get('/users', getAllUsers);
 router.put('/users/:id/role', updateUserRole);
+
+// Admin Management
+router.post('/invite', inviteAdmin);
+router.put('/users/:id/permissions', updateUserPermissions);
+router.put('/users/:id/remove-admin', removeAdminRole);
+router.get('/invites', getAdminInvites);
+router.delete('/invites/:id/cancel', cancelAdminInvite);
 
 module.exports = router; 

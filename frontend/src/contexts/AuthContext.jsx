@@ -92,6 +92,11 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Add helper function to check if user is admin
+  const isAdmin = () => {
+    return user && (user.role === 'admin' || user.isAdmin);
+  };
+
   const value = {
     user,
     loading,
@@ -101,6 +106,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     clearError,
+    isAdmin, // Add this
     isAuthenticated: !!user,
   };
 

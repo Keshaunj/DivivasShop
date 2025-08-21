@@ -277,14 +277,33 @@ export default function Navbar() {
                       >
                         My Account
                       </button>
+                      {/* Admin Panel Button - Show for any admin user */}
                       {(user?.role === 'admin' || user?.isAdmin) && (
                         <button
                           onClick={() => { navigate('/admin'); setAccountDropdownOpen(false); }}
-                          className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                          className="block w-full text-left px-4 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-md font-medium transition-colors"
                         >
-                          Admin Panel
+                          👑 Admin Panel
                         </button>
                       )}
+                      
+                      {/* Super Admin Panel Button - Show for super admins only */}
+                      {user?.role === 'admin' && user?.isAdmin && (
+                        <button
+                          onClick={() => { navigate('/super-admin'); setAccountDropdownOpen(false); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md font-medium transition-colors"
+                        >
+                          🚀 Super Admin Panel
+                        </button>
+                      )}
+                      
+                      {/* Corporate Button - Show for all authenticated users */}
+                      <button
+                        onClick={() => { navigate('/corporate'); setAccountDropdownOpen(false); }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-medium"
+                      >
+                        🏢 Corporate
+                      </button>
                       <button
                         onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

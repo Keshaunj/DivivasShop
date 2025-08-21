@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { BusinessOwnerNotificationProvider } from './contexts/business-owner/BusinessOwnerNotificationContext';
 import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/customer/Dashboard';
 import ShopPage from './pages/customer/ShopPage';
 import CandlesPage from './pages/customer/CandlesPage';
@@ -10,7 +11,9 @@ import AccessoriesPage from './pages/customer/AccessoriesPage';
 import GiftSetsPage from './pages/customer/GiftSetsPage';
 import CartPage from './pages/customer/CartPage';
 import ProfilePage from './pages/customer/ProfilePage';
+import CorporatePage from './pages/customer/CorporatePage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import SuperAdminPanel from './pages/admin/SuperAdminPanel';
 import Footer from './components/Footer';
 import BusinessOwnerNotificationModal from './components/business-owner/BusinessOwnerNotificationModal';
 
@@ -31,7 +34,17 @@ export default function App() {
                   <Route path="/gift-sets" element={<GiftSetsPage />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/corporate" element={<CorporatePage />} />
+                  <Route path="/admin" element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/super-admin" element={
+                    <ProtectedRoute requireSuperAdmin={true}>
+                      <SuperAdminPanel />
+                    </ProtectedRoute>
+                  } />
                 </Routes>
               </main>
               <Footer />

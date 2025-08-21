@@ -283,6 +283,128 @@ const updateUserRole = async (req, res) => {
   }
 };
 
+// Admin Management Functions
+
+// Invite new admin
+const inviteAdmin = async (req, res) => {
+  try {
+    const { email, role, permissions } = req.body;
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+
+    // Create admin invitation
+    const AdminInvite = require('../models/adminInvite');
+    const invite = new AdminInvite({
+      email,
+      role,
+      permissions,
+      invitedBy: req.user.id,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+
+    await invite.save();
+
+    // TODO: Send email invitation
+    // await sendAdminInviteEmail(invite);
+
+    res.status(201).json({ 
+      message: 'Admin invitation sent successfully',
+      invite: {
+        id: invite._id,
+        email: invite.email,
+        role: invite.role,
+        expiresAt: invite.expiresAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error sending admin invitation', error: error.message });
+  }
+};
+
+// Update user permissions
+const updateUserPermissions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissions } = req.body;
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { permissions },
+      { new: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user permissions', error: error.message });
+  }
+};
+
+// Remove admin role
+const removeAdminRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { 
+        role: 'user',
+        isAdmin: false,
+        permissions: [],
+        adminNotes: 'Admin role removed'
+      },
+      { new: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ message: 'Admin role removed successfully', user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing admin role', error: error.message });
+  }
+};
+
+// Get admin invitations
+const getAdminInvites = async (req, res) => {
+  try {
+    const AdminInvite = require('../models/adminInvite');
+    const invites = await AdminInvite.find()
+      .populate('invitedBy', 'username email')
+      .sort({ createdAt: -1 });
+    
+    res.json(invites);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin invitations', error: error.message });
+  }
+};
+
+// Cancel admin invitation
+const cancelAdminInvite = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const AdminInvite = require('../models/adminInvite');
+    const invite = await AdminInvite.findByIdAndDelete(id);
+    
+    if (!invite) {
+      return res.status(404).json({ message: 'Invitation not found' });
+    }
+    
+    res.json({ message: 'Invitation cancelled successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error cancelling invitation', error: error.message });
+  }
+};
+
 module.exports = {
   isAdmin,
   getDashboardStats,
@@ -297,5 +419,10 @@ module.exports = {
   getAllOrders,
   updateOrderStatus,
   getAllUsers,
-  updateUserRole
+  updateUserRole,
+  inviteAdmin,
+  updateUserPermissions,
+  removeAdminRole,
+  getAdminInvites,
+  cancelAdminInvite
 }; 

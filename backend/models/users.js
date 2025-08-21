@@ -37,12 +37,45 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'manager', 'support', 'viewer'],
     default: 'user'
   },
   isAdmin: {
     type: Boolean,
     default: false
+  },
+  // Permission-based access control
+  permissions: [{
+    resource: {
+      type: String,
+      enum: ['products', 'categories', 'orders', 'users', 'analytics', 'settings', 'admin_management']
+    },
+    actions: [{
+      type: String,
+      enum: ['read', 'create', 'update', 'delete', 'manage']
+    }]
+  }],
+  // Admin management fields
+  invitedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  invitedAt: {
+    type: Date,
+    default: null
+  },
+  lastAdminAction: {
+    type: Date,
+    default: null
+  },
+  adminNotes: {
+    type: String,
+    default: ''
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   // Subscription management fields
   subscriptionStatus: {

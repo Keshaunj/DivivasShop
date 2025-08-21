@@ -208,7 +208,83 @@ export const adminAPI = {
     return handleResponse(response);
   },
 
-  // Get all orders for admin
+  // Products management
+  getAllProducts: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/products`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  addProduct: async (productData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/products`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(productData),
+    });
+    return handleResponse(response);
+  },
+
+  updateProduct: async (id, productData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(productData),
+    });
+    return handleResponse(response);
+  },
+
+  deleteProduct: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Categories management
+  getAllCategories: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/categories`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  addCategory: async (categoryData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/categories`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(categoryData),
+    });
+    return handleResponse(response);
+  },
+
+  updateCategory: async (categoryId, categoryData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/categories/${categoryId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(categoryData),
+    });
+    return handleResponse(response);
+  },
+
+  deleteCategory: async (categoryId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Orders management
   getAllOrders: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/orders`, {
       headers: getAuthHeaders(),
@@ -217,16 +293,6 @@ export const adminAPI = {
     return handleResponse(response);
   },
 
-  // Get all users for admin
-  getAllUsers: async () => {
-    const response = await fetch(`${API_BASE_URL}/admin/users`, {
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-    return handleResponse(response);
-  },
-
-  // Update order status
   updateOrderStatus: async (orderId, status) => {
     const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}/status`, {
       method: 'PUT',
@@ -237,31 +303,75 @@ export const adminAPI = {
     return handleResponse(response);
   },
 
-  // Add new category
-  addCategory: async (categoryData) => {
-    const response = await fetch(`${API_BASE_URL}/categories`, {
-      method: 'POST',
+  // Users management
+  getAllUsers: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
       headers: getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(categoryData),
     });
     return handleResponse(response);
   },
 
-  // Update category
-  updateCategory: async (categoryId, categoryData) => {
-    const response = await fetch(`${API_BASE_URL}/categories/${categoryId}`, {
+  updateUserRole: async (userId, role) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(categoryData),
+      body: JSON.stringify({ role }),
     });
     return handleResponse(response);
   },
 
-  // Delete category
-  deleteCategory: async (categoryId) => {
-    const response = await fetch(`${API_BASE_URL}/categories/${categoryId}`, {
+  // Admin Management API endpoints
+  inviteAdmin: async (inviteData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/invite`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(inviteData),
+    });
+    return handleResponse(response);
+  },
+
+  updateUserPermissions: async (userId, permissions) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/permissions`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ permissions }),
+    });
+    return handleResponse(response);
+  },
+
+  removeAdminRole: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/remove-admin`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Remove admin role (frontend version)
+  removeAdminRoleFrontend: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/remove-admin`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  getAdminInvites: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/invites`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  cancelAdminInvite: async (inviteId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/invites/${inviteId}/cancel`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
       credentials: 'include',
