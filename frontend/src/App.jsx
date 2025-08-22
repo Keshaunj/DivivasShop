@@ -11,7 +11,7 @@ import AccessoriesPage from './pages/customer/AccessoriesPage';
 import GiftSetsPage from './pages/customer/GiftSetsPage';
 import CartPage from './pages/customer/CartPage';
 import ProfilePage from './pages/customer/ProfilePage';
-import CorporatePage from './pages/customer/CorporatePage';
+import CorporatePortal from './pages/admin/corporate-portal';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import SuperAdminPanel from './pages/admin/SuperAdminPanel';
 import Footer from './components/Footer';
@@ -34,7 +34,7 @@ export default function App() {
                   <Route path="/gift-sets" element={<GiftSetsPage />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/corporate" element={<CorporatePage />} />
+                  <Route path="/corporate" element={<CorporatePortal />} />
                   <Route path="/admin" element={
                     <ProtectedRoute requireAdmin={true}>
                       <AdminDashboard />

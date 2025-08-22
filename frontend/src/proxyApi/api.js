@@ -322,6 +322,16 @@ export const adminAPI = {
     return handleResponse(response);
   },
 
+  updateUserBusinessInfo: async (userId, businessInfo) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/business-info`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ businessInfo }),
+    });
+    return handleResponse(response);
+  },
+
   // Admin Management API endpoints
   inviteAdmin: async (inviteData) => {
     const response = await fetch(`${API_BASE_URL}/admin/invite`, {

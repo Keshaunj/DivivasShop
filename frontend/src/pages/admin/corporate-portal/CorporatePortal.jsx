@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useCart } from '../../contexts/CartContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useCart } from '../../../contexts/CartContext';
 
-const CorporatePage = () => {
+const CorporatePortal = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, login } = useAuth();
   const { cartCount } = useCart();
@@ -12,14 +12,22 @@ const CorporatePage = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [corporateAuthenticated, setCorporateAuthenticated] = useState(false);
+  const [corporateUser, setCorporateUser] = useState(null);
 
   useEffect(() => {
+    // Check if user has corporate access (even if authenticated in main app)
     if (isAuthenticated) {
       determineAccessLevel();
     } else {
       setLoading(false);
     }
   }, [isAuthenticated, user]);
+
+  // Check if user has corporate access permissions
+  const hasCorporateAccess = () => {
+    return user?.role === 'admin' || user?.isAdmin;
+  };
 
   const determineAccessLevel = () => {
     if (user?.role === 'admin' && user?.isAdmin) {
@@ -37,10 +45,18 @@ const CorporatePage = () => {
     setLoginError('');
     
     try {
+      // First, authenticate the user
       const result = await login(loginForm);
       if (result.success) {
-        setShowLogin(false);
-        setLoginForm({ identifier: '', password: '' });
+        // Check if the authenticated user has corporate access
+        if (hasCorporateAccess()) {
+          setCorporateAuthenticated(true);
+          setCorporateUser(result.user);
+          setShowLogin(false);
+          setLoginForm({ email: '', password: '' });
+        } else {
+          setLoginError('Access denied. This account does not have corporate privileges.');
+        }
       } else {
         setLoginError(result.message);
       }
@@ -66,8 +82,8 @@ const CorporatePage = () => {
     );
   }
 
-  // Show login form for non-authenticated users
-  if (!isAuthenticated) {
+  // Show corporate login form for all users (even if authenticated in main app)
+  if (!corporateAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
@@ -75,7 +91,10 @@ const CorporatePage = () => {
             <div className="text-6xl mb-4">🏢</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Corporate Portal</h1>
             <p className="text-gray-600 mb-6">
-              Please login to access corporate features. This area is restricted to business owners and administrators.
+              {isAuthenticated 
+                ? 'Please authenticate for corporate access. This area requires additional verification.'
+                : 'Please login to access corporate features. This area is restricted to business owners and administrators.'
+              }
             </p>
             
             {!showLogin ? (
@@ -84,7 +103,7 @@ const CorporatePage = () => {
                   onClick={() => setShowLogin(true)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  🔐 Login with Email
+                  {isAuthenticated ? '🔐 Authenticate for Corporate' : '🔐 Login with Email'}
                 </button>
                 <button
                   onClick={() => navigate('/')}
@@ -136,7 +155,7 @@ const CorporatePage = () => {
                     type="submit"
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    🔐 Login
+                    {isAuthenticated ? '🔐 Authenticate' : '🔐 Login'}
                   </button>
                   <button
                     type="button"
@@ -154,36 +173,8 @@ const CorporatePage = () => {
     );
   }
 
-  // Access denied for non-admin users
-  if (accessLevel === 'denied') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="text-6xl mb-4">🚫</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-            <p className="text-gray-600 mb-6">
-              Corporate access is restricted to business owners and administrators only.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={() => navigate('/')}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Back to Home
-              </button>
-              <button
-                onClick={() => navigate('/profile')}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                My Account
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Determine access level for corporate user
+  const corporateAccessLevel = corporateUser?.role === 'admin' && corporateUser?.isAdmin ? 'super-admin' : 'admin';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -199,8 +190,18 @@ const CorporatePage = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm">
-                Welcome, {user?.username || user?.email}
+                Welcome, {corporateUser?.username || corporateUser?.email}
               </span>
+              <button
+                onClick={() => {
+                  setCorporateAuthenticated(false);
+                  setCorporateUser(null);
+                  navigate('/corporate');
+                }}
+                className="px-3 py-1 bg-white text-blue-600 rounded-md hover:bg-gray-100 transition-colors text-sm"
+              >
+                🔒 Logout Corporate
+              </button>
               <button
                 onClick={() => navigate('/')}
                 className="px-3 py-1 bg-white text-blue-600 rounded-md hover:bg-gray-100 transition-colors text-sm"
@@ -213,28 +214,42 @@ const CorporatePage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Security Notice */}
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="text-yellow-600 text-lg mr-3">🔒</div>
+            <div>
+              <h3 className="font-semibold text-yellow-800">Security Notice</h3>
+              <p className="text-sm text-yellow-700">
+                You are accessing the corporate portal with elevated privileges. 
+                Remember to logout when finished to maintain security.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Access Level Banner */}
         <div className={`mb-8 p-4 rounded-lg ${
-          accessLevel === 'super-admin' 
+          corporateAccessLevel === 'super-admin' 
             ? 'bg-red-50 border border-red-200' 
             : 'bg-blue-50 border border-blue-200'
         }`}>
           <div className="flex items-center">
             <div className={`text-2xl mr-3 ${
-              accessLevel === 'super-admin' ? 'text-red-600' : 'text-blue-600'
+              corporateAccessLevel === 'super-admin' ? 'text-red-600' : 'text-blue-600'
             }`}>
-              {accessLevel === 'super-admin' ? '👑' : '🏢'}
+              {corporateAccessLevel === 'super-admin' ? '👑' : '🏢'}
             </div>
             <div>
               <h2 className={`font-semibold ${
-                accessLevel === 'super-admin' ? 'text-red-800' : 'text-blue-800'
+                corporateAccessLevel === 'super-admin' ? 'text-red-800' : 'text-blue-800'
               }`}>
-                {accessLevel === 'super-admin' ? 'Super Admin Access' : 'Business Owner Access'}
+                {corporateAccessLevel === 'super-admin' ? 'Super Admin Access' : 'Business Owner Access'}
               </h2>
               <p className={`text-sm ${
-                accessLevel === 'super-admin' ? 'text-red-700' : 'text-blue-700'
+                corporateAccessLevel === 'super-admin' ? 'text-red-700' : 'text-blue-700'
               }`}>
-                {accessLevel === 'super-admin' 
+                {corporateAccessLevel === 'super-admin' 
                   ? 'You have full platform access and can manage all business operations.'
                   : 'You have access to manage your business storefront and operations.'
                 }
@@ -285,7 +300,7 @@ const CorporatePage = () => {
           </div>
 
           {/* Super Admin Only Features */}
-          {accessLevel === 'super-admin' && (
+          {corporateAccessLevel === 'super-admin' && (
             <>
               {/* Platform Management */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -335,26 +350,26 @@ const CorporatePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
-              <p className="text-gray-900">{user?.username || 'Business Account'}</p>
+              <p className="text-gray-900">{corporateUser?.username || 'Business Account'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
-              <p className="text-gray-900">{user?.email}</p>
+              <p className="text-gray-900">{corporateUser?.email}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
               <p className="text-gray-900">
-                {accessLevel === 'super-admin' ? 'Super Administrator' : 'Business Owner'}
+                {corporateAccessLevel === 'super-admin' ? 'Super Administrator' : 'Business Owner'}
               </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
               <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                accessLevel === 'super-admin' 
+                corporateAccessLevel === 'super-admin' 
                   ? 'bg-red-100 text-red-800' 
                   : 'bg-blue-100 text-blue-800'
               }`}>
-                {accessLevel === 'super-admin' ? 'Full Platform Access' : 'Business Operations'}
+                {corporateAccessLevel === 'super-admin' ? 'Full Platform Access' : 'Business Operations'}
               </span>
             </div>
           </div>
@@ -364,4 +379,4 @@ const CorporatePage = () => {
   );
 };
 
-export default CorporatePage;
+export default CorporatePortal;

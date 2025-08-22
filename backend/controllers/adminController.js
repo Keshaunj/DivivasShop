@@ -19,35 +19,80 @@ const isAdmin = (req, res, next) => {
 // Get admin dashboard statistics
 const getDashboardStats = async (req, res) => {
   try {
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalUsers = await User.countDocuments();
-    
-    // Calculate total revenue
-    const orders = await Order.find({ status: 'completed' });
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    
-    // Get recent orders
-    const recentOrders = await Order.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('user', 'username email');
-    
-    // Get low stock products
-    const lowStockProducts = await Product.find({ stock: { $lt: 10 } })
-      .select('name stock price')
-      .limit(5);
-    
-    res.json({
-      stats: {
-        totalProducts,
-        totalOrders,
-        totalUsers,
-        totalRevenue: totalRevenue.toFixed(2)
-      },
-      recentOrders,
-      lowStockProducts
-    });
+    // Check if user is Super Admin (has admin_management permissions)
+    const isSuperAdmin = req.user.permissions?.some(p => 
+      p.resource === 'admin_management' && p.actions.includes('read')
+    );
+
+    if (isSuperAdmin) {
+      // Super Admin - Platform-wide statistics
+      const totalProducts = await Product.countDocuments();
+      const totalOrders = await Order.countDocuments();
+      const totalUsers = await User.countDocuments();
+      const totalBusinesses = await User.countDocuments({ role: 'admin' });
+      const totalAdmins = await User.countDocuments({ 
+        $or: [{ role: 'admin' }, { isAdmin: true }] 
+      });
+      
+      // Calculate platform revenue
+      const orders = await Order.find({ status: 'completed' });
+      const platformRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+      
+      // Get recent platform orders
+      const recentOrders = await Order.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('user', 'username email');
+      
+      // Get low stock products across platform
+      const lowStockProducts = await Product.find({ stock: { $lt: 10 } })
+        .select('name stock price')
+        .limit(5);
+      
+      res.json({
+        stats: {
+          totalProducts,
+          totalOrders,
+          platformUsers: totalUsers,
+          totalBusinesses,
+          totalAdmins,
+          platformRevenue: platformRevenue.toFixed(2)
+        },
+        recentOrders,
+        lowStockProducts
+      });
+    } else {
+      // Business Owner Admin - Business-specific statistics
+      const totalProducts = await Product.countDocuments();
+      const totalOrders = await Order.countDocuments();
+      const totalUsers = await User.countDocuments();
+      
+      // Calculate business revenue
+      const orders = await Order.find({ status: 'completed' });
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+      
+      // Get recent business orders
+      const recentOrders = await Order.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('user', 'username email');
+      
+      // Get low stock products for business
+      const lowStockProducts = await Product.find({ stock: { $lt: 10 } })
+        .select('name stock price')
+        .limit(5);
+      
+      res.json({
+        stats: {
+          totalProducts,
+          totalOrders,
+          totalUsers,
+          totalRevenue: totalRevenue.toFixed(2)
+        },
+        recentOrders,
+        lowStockProducts
+      });
+    }
   } catch (error) {
     res.status(500).json({ message: 'Error fetching dashboard stats', error: error.message });
   }
@@ -283,6 +328,33 @@ const updateUserRole = async (req, res) => {
   }
 };
 
+// Update user business information
+const updateUserBusinessInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { businessInfo } = req.body;
+    
+    // Validate business info structure
+    if (!businessInfo || typeof businessInfo !== 'object') {
+      return res.status(400).json({ message: 'Invalid business information' });
+    }
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { businessInfo },
+      { new: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user business information', error: error.message });
+  }
+};
+
 // Admin Management Functions
 
 // Invite new admin
@@ -420,6 +492,7 @@ module.exports = {
   updateOrderStatus,
   getAllUsers,
   updateUserRole,
+  updateUserBusinessInfo,
   inviteAdmin,
   updateUserPermissions,
   removeAdminRole,
