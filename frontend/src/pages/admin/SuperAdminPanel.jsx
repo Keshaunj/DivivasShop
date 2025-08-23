@@ -405,12 +405,19 @@ const UserManagement = ({ users, onUserUpdate }) => {
   const [userToDelete, setUserToDelete] = useState(null);
   const [showRoleChangeConfirm, setShowRoleChangeConfirm] = useState(false);
   const [roleChangeData, setRoleChangeData] = useState(null);
+  const [showEmailChangeConfirm, setShowEmailChangeConfirm] = useState(false);
+  const [emailChangeData, setEmailChangeData] = useState(null);
+  const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState(false);
+  const [statusChangeData, setStatusChangeData] = useState(null);
+  const [updatingUsers, setUpdatingUsers] = useState(new Set());
   const [message, setMessage] = useState('');
 
   // Form states for editing user
   const [editForm, setEditForm] = useState({
     username: '',
     email: '',
+    emailError: '',
+    emailChanged: false,
     role: '',
     isActive: true,
     businessInfo: {
@@ -430,10 +437,13 @@ const UserManagement = ({ users, onUserUpdate }) => {
   });
 
   const handleEditUser = (user) => {
+    console.log('Opening edit modal for user:', user);
     setSelectedUser(user);
     setEditForm({
       username: user.username || '',
       email: user.email || '',
+      emailError: '',
+      emailChanged: false,
       role: user.role || 'user',
       isActive: user.isActive !== false,
       businessInfo: {
@@ -449,6 +459,52 @@ const UserManagement = ({ users, onUserUpdate }) => {
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
+    console.log('Form submitted with data:', editForm);
+    console.log('Original user data:', selectedUser);
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editForm.email)) {
+      setMessage('Error: Please enter a valid email address');
+      return;
+    }
+    
+    // Check if any changes were made
+    const hasChanges = 
+      editForm.username !== selectedUser.username ||
+      editForm.email !== selectedUser.email ||
+      editForm.role !== selectedUser.role ||
+      editForm.isActive !== selectedUser.isActive ||
+      JSON.stringify(editForm.businessInfo) !== JSON.stringify(selectedUser.businessInfo || {});
+    
+    if (!hasChanges) {
+      setMessage('No changes detected. Please make changes before updating.');
+      return;
+    }
+    
+    // Check if email is changing and show confirmation
+    if (editForm.email !== selectedUser.email) {
+      setEmailChangeData({
+        userId: selectedUser._id,
+        oldEmail: selectedUser.email,
+        newEmail: editForm.email,
+        formData: editForm
+      });
+      setShowEmailChangeConfirm(true);
+      return;
+    }
+    
+    // Check if status is changing and show confirmation
+    if (editForm.isActive !== selectedUser.isActive) {
+      setStatusChangeData({
+        userId: selectedUser._id,
+        oldStatus: selectedUser.isActive,
+        newStatus: editForm.isActive,
+        formData: editForm
+      });
+      setShowStatusChangeConfirm(true);
+      return;
+    }
     
     // Check if role is changing and show confirmation
     if (editForm.role !== selectedUser.role) {
@@ -462,7 +518,7 @@ const UserManagement = ({ users, onUserUpdate }) => {
       return;
     }
     
-    // If no role change, proceed with update
+    // If no special confirmations needed, proceed with update
     await performUserUpdate(selectedUser._id, editForm);
   };
 
@@ -477,69 +533,214 @@ const UserManagement = ({ users, onUserUpdate }) => {
     }
   };
 
-  const performUserUpdate = async (userId, formData) => {
+  const confirmEmailChange = async () => {
     try {
-      console.log('Updating user:', userId, 'with form data:', formData);
-      
-      // Update user role if changed
-      if (formData.role !== selectedUser.role) {
-        console.log('Updating role from', selectedUser.role, 'to', formData.role);
-        const roleResult = await adminAPI.updateUserRole(userId, formData.role);
-        console.log('Role update result:', roleResult);
-      }
-
-      // Update user permissions if role is admin
-      if (formData.role === 'admin') {
-        const adminPermissions = [
-          { resource: 'products', actions: ['read', 'create', 'update', 'delete'] },
-          { resource: 'categories', actions: ['read', 'create', 'update', 'delete'] },
-          { resource: 'orders', actions: ['read', 'update'] },
-          { resource: 'users', actions: ['read', 'update'] },
-          { resource: 'analytics', actions: ['read'] },
-          { resource: 'settings', actions: ['read', 'update'] }
-        ];
-        console.log('Updating admin permissions:', adminPermissions);
-        const permResult = await adminAPI.updateUserPermissions(userId, adminPermissions);
-        console.log('Permission update result:', permResult);
-      }
-
-      // Update business information if changed
-      if (JSON.stringify(formData.businessInfo) !== JSON.stringify(selectedUser.businessInfo || {})) {
-        console.log('Updating business info:', formData.businessInfo);
-        const businessResult = await adminAPI.updateUserBusinessInfo(userId, formData.businessInfo);
-        console.log('Business info update result:', businessResult);
-      }
-
-      setMessage('User updated successfully!');
-      setShowEditModal(false);
-      setSelectedUser(null);
-      onUserUpdate(); // Refresh the user list
+      await performUserUpdate(emailChangeData.userId, emailChangeData.formData);
+      setShowEmailChangeConfirm(false);
+      setEmailChangeData(null);
     } catch (error) {
-      console.error('Error updating user:', error);
+      console.error('Error confirming email change:', error);
       setMessage('Error updating user: ' + error.message);
     }
   };
 
-  const handleDeleteUser = (user) => {
-    setUserToDelete(user);
+  const confirmStatusChange = async () => {
+    try {
+      await performUserUpdate(statusChangeData.userId, statusChangeData.formData);
+      setShowStatusChangeConfirm(false);
+      setStatusChangeData(null);
+    } catch (error) {
+      console.error('Error confirming status change:', error);
+      setMessage('Error updating user: ' + error.message);
+    }
+  };
+
+  const resetEditForm = () => {
+    setEditForm({
+      username: '',
+      email: '',
+      emailError: '',
+      emailChanged: false,
+      role: '',
+      isActive: true,
+      businessInfo: {
+        businessName: '',
+        businessType: '',
+        businessAddress: '',
+        phone: '',
+        website: ''
+      }
+    });
+  };
+
+  const performUserUpdate = async (userId, formData) => {
+    try {
+      console.log('=== STARTING USER UPDATE ===');
+      console.log('User ID:', userId);
+      console.log('Form Data:', formData);
+      console.log('Original User:', selectedUser);
+      
+      // Set loading state for this user
+      setUpdatingUsers(prev => new Set(prev).add(userId));
+      
+      let updateCount = 0;
+      
+      // Update user email if changed
+      if (formData.email !== selectedUser.email) {
+        console.log('📧 Updating email from', selectedUser.email, 'to', formData.email);
+        try {
+          const emailResult = await adminAPI.updateUserEmail(userId, formData.email);
+          console.log('✅ Email update successful:', emailResult);
+          updateCount++;
+          
+          // Update local state immediately
+          setUsers(prevUsers => prevUsers.map(user => 
+            user._id === userId 
+              ? { ...user, email: formData.email }
+              : user
+          ));
+        } catch (error) {
+          console.error('❌ Email update failed:', error);
+          throw new Error(`Email update failed: ${error.message}`);
+        }
+      }
+      
+      // Update user role if changed
+      if (formData.role !== selectedUser.role) {
+        console.log('👑 Updating role from', selectedUser.role, 'to', formData.role);
+        try {
+          const roleResult = await adminAPI.updateUserRole(userId, formData.role);
+          console.log('✅ Role update successful:', roleResult);
+          updateCount++;
+          
+          // Update local state immediately
+          setUsers(prevUsers => prevUsers.map(user => 
+            user._id === userId 
+              ? { ...user, role: formData.role }
+              : user
+          ));
+        } catch (error) {
+          console.error('❌ Role update failed:', error);
+          throw new Error(`Role update failed: ${error.message}`);
+        }
+      }
+
+      // Update user status if changed
+      if (formData.isActive !== selectedUser.isActive) {
+        console.log('📊 Updating status from', selectedUser.isActive, 'to', formData.isActive);
+        try {
+          const statusResult = await adminAPI.updateUserStatus(userId, formData.isActive);
+          console.log('✅ Status update successful:', statusResult);
+          updateCount++;
+          
+          // Update local state immediately
+          setUsers(prevUsers => prevUsers.map(user => 
+            user._id === userId 
+              ? { ...user, isActive: formData.isActive }
+              : user
+          ));
+        } catch (error) {
+          console.error('❌ Status update failed:', error);
+          throw new Error(`Status update failed: ${error.message}`);
+        }
+      }
+
+      // Update business information if changed
+      if (JSON.stringify(formData.businessInfo) !== JSON.stringify(selectedUser.businessInfo || {})) {
+        console.log('🏢 Updating business info:', formData.businessInfo);
+        try {
+          const businessResult = await adminAPI.updateUserBusinessInfo(userId, formData.businessInfo);
+          console.log('✅ Business info update successful:', businessResult);
+          updateCount++;
+          
+          // Update local state immediately
+          setUsers(prevUsers => prevUsers.map(user => 
+            user._id === userId 
+              ? { ...user, businessInfo: formData.businessInfo }
+              : user
+          ));
+        } catch (error) {
+          console.error('❌ Business info update failed:', error);
+          throw new Error(`Business info update failed: ${error.message}`);
+        }
+      }
+
+      // Update user permissions if role is admin
+      if (formData.role === 'admin') {
+        console.log('🔐 Updating admin permissions');
+        try {
+          const adminPermissions = [
+            { resource: 'products', actions: ['read', 'create', 'update', 'delete'] },
+            { resource: 'categories', actions: ['read', 'create', 'update', 'delete'] },
+            { resource: 'orders', actions: ['read', 'update'] },
+            { resource: 'users', actions: ['read', 'update'] },
+            { resource: 'analytics', actions: ['read'] },
+            { resource: 'settings', actions: ['read', 'update'] }
+          ];
+          const permResult = await adminAPI.updateUserPermissions(userId, adminPermissions);
+          console.log('✅ Permissions update successful:', permResult);
+          updateCount++;
+        } catch (error) {
+          console.error('❌ Permissions update failed:', error);
+          // Don't throw error for permissions, just log it
+        }
+      }
+
+      console.log(`🎉 User update completed successfully! ${updateCount} fields updated.`);
+
+      // Clear loading state
+      setUpdatingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+
+      setMessage(`✅ User updated successfully! ${updateCount} fields were updated.`);
+      setShowEditModal(false);
+      setSelectedUser(null);
+      resetEditForm();
+      
+    } catch (error) {
+      console.error('💥 User update failed:', error);
+      setMessage(`❌ Error updating user: ${error.message}`);
+      
+      // Clear loading state on error
+      setUpdatingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleDeleteUser = (userToDelete) => {
+    // Prevent removing yourself
+    if (userToDelete._id === user?._id) {
+      setMessage('Error: You cannot remove your own account');
+      return;
+    }
+    
+    setUserToDelete(userToDelete);
     setShowDeleteConfirm(true);
   };
 
   const confirmDeleteUser = async () => {
     try {
-      console.log('Deactivating user:', userToDelete._id);
+      console.log('Removing user:', userToDelete._id);
       
-      // For now, we'll just deactivate the user instead of deleting
-      const result = await adminAPI.updateUserRole(userToDelete._id, 'user');
-      console.log('User deactivation result:', result);
+      // Actually remove the user from the database
+      const result = await adminAPI.removeUser(userToDelete._id);
+      console.log('User removal result:', result);
       
-      setMessage('User deactivated successfully!');
+      // Remove user from local state immediately
+      setUsers(users.filter(user => user._id !== userToDelete._id));
+      
+      setMessage('User removed successfully!');
       setShowDeleteConfirm(false);
       setUserToDelete(null);
-      onUserUpdate(); // Refresh the user list
     } catch (error) {
-      console.error('Error deactivating user:', error);
-      setMessage('Error deactivating user: ' + error.message);
+      console.error('Error removing user:', error);
+      setMessage('Error removing user: ' + error.message);
     }
   };
 
@@ -665,11 +866,17 @@ const UserManagement = ({ users, onUserUpdate }) => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {user.isActive !== false ? 'Active' : 'Inactive'}
-                  </span>
+                  {updatingUsers.has(user._id) ? (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                      🔄 Updating...
+                    </span>
+                  ) : (
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      user.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.isActive !== false ? 'Active' : 'Inactive'}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-sm font-medium">
                   <button
@@ -705,6 +912,11 @@ const UserManagement = ({ users, onUserUpdate }) => {
                 <p className="text-sm text-blue-700">
                   <strong>Current User:</strong> {selectedUser.email}
                 </p>
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-xs text-yellow-700">
+                    🔧 <strong>Super Admin Access:</strong> You can edit email addresses for customer support purposes.
+                  </p>
+                </div>
               </div>
               
               <form onSubmit={handleUpdateUser}>
@@ -727,10 +939,55 @@ const UserManagement = ({ users, onUserUpdate }) => {
                     <input
                       type="email"
                       value={editForm.email}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                      onChange={(e) => {
+                        const newEmail = e.target.value.trim();
+                        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail);
+                        
+                        setEditForm({
+                          ...editForm, 
+                          email: newEmail,
+                          emailError: newEmail && !isValidEmail ? 'Please enter a valid email address' : '',
+                          emailChanged: newEmail !== selectedUser.email
+                        });
+                      }}
+                      onBlur={(e) => {
+                        const email = e.target.value.trim();
+                        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                          setEditForm({
+                            ...editForm,
+                            emailError: 'Please enter a valid email address'
+                          });
+                        } else {
+                          setEditForm({
+                            ...editForm,
+                            emailError: ''
+                          });
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md transition-all duration-200 ${
+                        editForm.emailError 
+                          ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500' 
+                          : editForm.emailChanged
+                          ? 'border-blue-300 bg-blue-50 focus:ring-2 focus:ring-blue-500'
+                          : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                      }`}
+                      placeholder="Enter new email address"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                    {editForm.emailError && (
+                      <p className="text-xs text-red-600 mt-1 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {editForm.emailError}
+                      </p>
+                    )}
+                    {editForm.emailChanged && !editForm.emailError && (
+                      <p className="text-xs text-green-600 mt-1 flex items-center">
+                        <span className="mr-1">✅</span>
+                        Email will be updated from "{selectedUser.email}" to "{editForm.email}"
+                      </p>
+                    )}
+                    {!editForm.emailChanged && !editForm.emailError && (
+                      <p className="text-xs text-blue-600 mt-1">💡 Super Admin: Can change email for customer support</p>
+                    )}
                   </div>
                 </div>
 
@@ -777,12 +1034,19 @@ const UserManagement = ({ users, onUserUpdate }) => {
                       <input
                         type="text"
                         value={editForm.businessInfo.businessName}
-                        onChange={(e) => setEditForm({
-                          ...editForm, 
-                          businessInfo: {...editForm.businessInfo, businessName: e.target.value}
-                        })}
+                        onChange={(e) => {
+                          console.log('Business name changed to:', e.target.value);
+                          setEditForm({
+                            ...editForm, 
+                            businessInfo: {...editForm.businessInfo, businessName: e.target.value}
+                          });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter business name"
                       />
+                      {editForm.businessInfo.businessName && (
+                        <p className="text-xs text-green-600 mt-1">✅ Business name will be updated</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -849,8 +1113,19 @@ const UserManagement = ({ users, onUserUpdate }) => {
                   <button
                     type="button"
                     onClick={() => {
+                      console.log('Current form state:', editForm);
+                      console.log('Selected user:', selectedUser);
+                    }}
+                    className="px-4 py-2 text-yellow-600 bg-yellow-100 rounded-md hover:bg-yellow-200"
+                  >
+                    🔍 Debug Form
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowEditModal(false);
                       setSelectedUser(null);
+                      resetEditForm();
                     }}
                     className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                   >
@@ -881,9 +1156,18 @@ const UserManagement = ({ users, onUserUpdate }) => {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Confirm User Removal</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to remove <strong>{userToDelete.email}</strong>? 
-                This action will deactivate their account and remove their admin privileges.
+                Are you sure you want to <strong>permanently remove</strong> <strong>{userToDelete.email}</strong>? 
+                This action will <strong>delete their account completely</strong> and cannot be undone.
               </p>
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="text-xs text-red-700">
+                  <strong>⚠️ Warning:</strong><br/>
+                  • User account will be permanently deleted<br/>
+                  • All user data will be lost<br/>
+                  • This action cannot be undone<br/>
+                  • User will no longer be able to access the platform
+                </div>
+              </div>
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
@@ -891,12 +1175,12 @@ const UserManagement = ({ users, onUserUpdate }) => {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={confirmDeleteUser}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                >
-                  Remove User
-                </button>
+                                  <button
+                    onClick={confirmDeleteUser}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  >
+                    Permanently Delete User
+                  </button>
               </div>
             </div>
           </div>
@@ -941,6 +1225,108 @@ const UserManagement = ({ users, onUserUpdate }) => {
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   Confirm Role Change
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Change Confirmation Modal */}
+      {showEmailChangeConfirm && emailChangeData && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
+                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Confirm Email Change</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to change the email for <strong>{emailChangeData.oldEmail}</strong> to{' '}
+                <span className="text-blue-600 font-medium">{emailChangeData.newEmail}</span>?
+              </p>
+              <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="text-xs text-orange-700">
+                  <strong>⚠️ Important:</strong><br/>
+                  • This will change the user's login email<br/>
+                  • User will need to use new email for future logins<br/>
+                  • Previous email will no longer work for this account<br/>
+                  • This is typically done for customer support
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowEmailChangeConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmEmailChange}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                >
+                  Confirm Email Change
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Change Confirmation Modal */}
+      {showStatusChangeConfirm && statusChangeData && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 mb-4">
+                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Confirm Status Change</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to change the status for <strong>{statusChangeData.formData.email}</strong> from{' '}
+                <span className={`font-medium ${statusChangeData.oldStatus ? 'text-green-600' : 'text-red-600'}`}>
+                  {statusChangeData.oldStatus ? 'Active' : 'Inactive'}
+                </span> to{' '}
+                <span className={`font-medium ${statusChangeData.newStatus ? 'text-green-600' : 'text-red-600'}`}>
+                  {statusChangeData.newStatus ? 'Active' : 'Inactive'}
+                </span>?
+              </p>
+              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="text-xs text-purple-700">
+                  <strong>📊 Status Change Impact:</strong><br/>
+                  {statusChangeData.newStatus ? (
+                    <>
+                      • User account will be <strong>activated</strong><br/>
+                      • User can login and access the platform<br/>
+                      • All permissions will be restored<br/>
+                      • User will receive normal notifications
+                    </>
+                  ) : (
+                    <>
+                      • User account will be <strong>deactivated</strong><br/>
+                      • User cannot login to the platform<br/>
+                      • All access will be blocked<br/>
+                      • User will not receive notifications
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowStatusChangeConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmStatusChange}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                >
+                  Confirm Status Change
                 </button>
               </div>
             </div>

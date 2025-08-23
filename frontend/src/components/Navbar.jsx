@@ -234,7 +234,7 @@ export default function Navbar() {
               onClick={() => navigate('/')}
               className="text-xl font-bold tracking-wide text-gray-800 hover:text-gray-600 transition-colors"
             >
-              Divias Wicka Shop
+              Divias Candle Shop
             </button>
           </div>
 

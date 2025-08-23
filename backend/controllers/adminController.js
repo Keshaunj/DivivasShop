@@ -355,6 +355,112 @@ const updateUserBusinessInfo = async (req, res) => {
   }
 };
 
+// Update user email (Super Admin only)
+const updateUserEmail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+    
+    // Validate email format
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Check if new email is already taken by another user
+    const existingUser = await User.findOne({ email, _id: { $ne: id } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already taken by another user' });
+    }
+    
+    // Update user email
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { email },
+      { new: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user email', error: error.message });
+  }
+};
+
+// Update user status (Super Admin only)
+const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    
+    // Validate isActive is a boolean
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ message: 'isActive must be a boolean value' });
+    }
+    
+    // Check if user exists
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Prevent deactivating super admins
+    if (user.role === 'admin' && user.isAdmin === true && !isActive) {
+      return res.status(403).json({ message: 'Cannot deactivate super admin users. Contact another super admin if needed.' });
+    }
+    
+    // Update user status
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user status', error: error.message });
+  }
+};
+
+// Remove user (Super Admin only)
+const removeUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user exists
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Prevent removing super admins (including the requesting user)
+    if (user.role === 'admin' && user.isAdmin === true) {
+      return res.status(403).json({ message: 'Cannot remove super admin users. Contact another super admin if needed.' });
+    }
+    
+    // Prevent removing the last super admin
+    if (user.role === 'admin') {
+      const superAdminCount = await User.countDocuments({ role: 'admin', isAdmin: true });
+      if (superAdminCount <= 1) {
+        return res.status(403).json({ message: 'Cannot remove the last super admin. At least one super admin must remain.' });
+      }
+    }
+    
+    // Remove the user
+    await User.findByIdAndDelete(id);
+    
+    res.json({ message: 'User removed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing user', error: error.message });
+  }
+};
+
 // Admin Management Functions
 
 // Invite new admin
@@ -493,6 +599,9 @@ module.exports = {
   getAllUsers,
   updateUserRole,
   updateUserBusinessInfo,
+  updateUserEmail,
+  updateUserStatus,
+  removeUser,
   inviteAdmin,
   updateUserPermissions,
   removeAdminRole,

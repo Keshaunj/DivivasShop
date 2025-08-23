@@ -332,6 +332,35 @@ export const adminAPI = {
     return handleResponse(response);
   },
 
+  updateUserEmail: async (userId, email) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/email`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(response);
+  },
+
+  removeUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  updateUserStatus: async (userId, isActive) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ isActive }),
+    });
+    return handleResponse(response);
+  },
+
   // Admin Management API endpoints
   inviteAdmin: async (inviteData) => {
     const response = await fetch(`${API_BASE_URL}/admin/invite`, {

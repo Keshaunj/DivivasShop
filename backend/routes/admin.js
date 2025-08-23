@@ -17,6 +17,9 @@ const {
   getAllUsers,
   updateUserRole,
   updateUserBusinessInfo,
+  updateUserEmail,
+  updateUserStatus,
+  removeUser,
   inviteAdmin,
   updateUserPermissions,
   removeAdminRole,
@@ -51,6 +54,9 @@ router.put('/orders/:id/status', updateOrderStatus);
 router.get('/users', getAllUsers);
 router.put('/users/:id/role', updateUserRole);
 router.put('/users/:id/business-info', updateUserBusinessInfo);
+router.put('/users/:id/email', updateUserEmail);
+router.put('/users/:id/status', updateUserStatus);
+router.delete('/users/:id', removeUser);
 
 // Admin Management
 router.post('/invite', inviteAdmin);
