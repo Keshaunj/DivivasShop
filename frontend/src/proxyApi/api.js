@@ -35,15 +35,84 @@ export const authAPI = {
 
   // Login user
   login: async (credentials) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    console.log('=== AUTH API LOGIN START ===');
+    console.log('1. Login function called with credentials:', { 
+      email: credentials.email, 
+      hasPassword: !!credentials.password 
+    });
+    
+    const url = `${API_BASE_URL}/auth/login`;
+    console.log('2. Making request to URL:', url);
+    
+    const requestOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include', // Include cookies
       body: JSON.stringify(credentials),
+    };
+    
+    console.log('3. Request options:', {
+      method: requestOptions.method,
+      headers: requestOptions.headers,
+      credentials: requestOptions.credentials,
+      bodyLength: requestOptions.body.length
     });
-    return handleResponse(response);
+    
+    console.log('4. About to make fetch request...');
+    
+    try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error('5. FETCH TIMEOUT - Request taking too long, aborting...');
+        controller.abort();
+      }, 5000); // 5 second timeout
+      
+      const response = await fetch(url, {
+        ...requestOptions,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('5. Fetch response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (!response.ok) {
+        console.error('6. Response not OK, calling handleResponse...');
+        return handleResponse(response);
+      }
+      
+      console.log('6. Response is OK, parsing JSON...');
+      const data = await response.json();
+      console.log('7. JSON parsed successfully:', data);
+      console.log('=== AUTH API LOGIN SUCCESS ===');
+      return data;
+      
+    } catch (fetchError) {
+      console.error('=== AUTH API LOGIN FETCH ERROR ===');
+      console.error('Fetch error type:', typeof fetchError);
+      console.error('Fetch error name:', fetchError.name);
+      console.error('Fetch error message:', fetchError.message);
+      console.error('Fetch error stack:', fetchError.stack);
+      console.error('Full fetch error:', fetchError);
+      
+      if (fetchError.name === 'AbortError') {
+        console.error('REQUEST TIMED OUT - Backend is not responding within 5 seconds');
+        console.error('Possible causes:');
+        console.error('- Backend server crashed or stopped');
+        console.error('- Backend is hanging on the login route');
+        console.error('- Database connection issues');
+        console.error('- Backend process is frozen');
+      }
+      
+      throw fetchError;
+    }
   },
 
   // Logout user

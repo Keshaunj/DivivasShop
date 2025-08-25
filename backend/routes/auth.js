@@ -19,7 +19,17 @@ const { authenticateToken } = require('../utils/authentication/jwt');
 router.post('/signup', signupUser);
 
 // POST /api/auth/login
-router.post('/login', loginUser);
+router.post('/login', (req, res, next) => {
+  console.log('=== LOGIN ROUTE HIT ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('Body keys:', Object.keys(req.body || {}));
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('=== END LOGIN ROUTE LOG ===');
+  next();
+}, loginUser);
 
 // POST /api/auth/logout
 router.post('/logout', logoutUser);

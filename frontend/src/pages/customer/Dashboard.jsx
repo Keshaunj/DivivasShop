@@ -10,7 +10,7 @@ const Dashboard = () => {
   const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Fetch products from backend
@@ -20,7 +20,6 @@ const Dashboard = () => {
 
   const loadProducts = async () => {
     try {
-      setLoading(true);
       setError('');
       const productsData = await productsAPI.getAllProducts();
       setProducts(productsData);
@@ -58,8 +57,6 @@ const Dashboard = () => {
           image: '/placeholder-product.jpg'
         }
       ]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -73,13 +70,7 @@ const Dashboard = () => {
     navigate('/cart');
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
+  // Removed loading screen to show content immediately
 
   return (
     <div className="min-h-screen bg-gray-50">
