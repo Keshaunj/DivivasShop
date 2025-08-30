@@ -23,9 +23,7 @@ router.post('/login', (req, res, next) => {
   console.log('=== LOGIN ROUTE HIT ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  console.log('Body keys:', Object.keys(req.body || {}));
+  // Security: Don't log sensitive request data
   console.log('Content-Type:', req.headers['content-type']);
   console.log('=== END LOGIN ROUTE LOG ===');
   next();

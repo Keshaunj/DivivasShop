@@ -1,51 +1,58 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
-// Connect to MongoDB
-mongoose.connect('mongodb+srv://keshaunjones48:YOUR_PASSWORD@cluster-keshaunj.grqab.mongodb.net/CandleShop?retryWrites=true&w=majority&appName=Cluster-KeshaunJ', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const checkCollections = async () => {
+async function checkCollections() {
   try {
-    console.log('🔍 Checking collections in CandleShop database...');
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Connected to MongoDB');
     
-    const collections = await mongoose.connection.db.listCollections().toArray();
+    const db = mongoose.connection.db;
     
-    if (collections.length === 0) {
-      console.log('❌ No collections found in database');
-      return;
-    }
+    // Get all collection names
+    const collections = await db.listCollections().toArray();
+    console.log('📚 Available collections:');
+    collections.forEach(col => console.log(`  - ${col.name}`));
     
-    console.log(`📚 Found ${collections.length} collections:`);
+    // Check each collection for the admin user
+    console.log('\n🔍 Searching for admin user in each collection...');
     
-    collections.forEach((collection, index) => {
-      console.log(`${index + 1}. ${collection.name}`);
-    });
-    
-    // Check if there's a users collection
-    const usersCollection = collections.find(c => c.name === 'users');
-    if (usersCollection) {
-      console.log('\n✅ Found users collection');
+    for (const collection of collections) {
+      if (collection.name === 'system.indexes' || collection.name === 'system.users') continue;
       
-      // Count documents in users collection
-      const userCount = await mongoose.connection.db.collection('users').countDocuments();
-      console.log(`👥 Users count: ${userCount}`);
-      
-      if (userCount > 0) {
-        // Get first user to see structure
-        const firstUser = await mongoose.connection.db.collection('users').findOne({});
-        console.log('\n🔍 First user structure:', JSON.stringify(firstUser, null, 2));
+      try {
+        const count = await db.collection(collection.name).countDocuments();
+        console.log(`\n📊 Collection: ${collection.name} (${count} documents)`);
+        
+        if (count > 0) {
+          // Look for admin user
+          const adminUser = await db.collection(collection.name).findOne({
+            email: 'keshaunjones48@gmail.com'
+          });
+          
+          if (adminUser) {
+            console.log(`✅ ADMIN USER FOUND in ${collection.name}!`);
+            console.log('User details:', {
+              id: adminUser._id,
+              email: adminUser.email,
+              username: adminUser.username,
+              role: adminUser.role,
+              isAdmin: adminUser.isAdmin
+            });
+          } else {
+            console.log(`❌ No admin user found in ${collection.name}`);
+          }
+        }
+      } catch (err) {
+        console.log(`❌ Error checking ${collection.name}:`, err.message);
       }
-    } else {
-      console.log('\n❌ No users collection found');
     }
     
   } catch (error) {
-    console.error('❌ Error checking collections:', error);
+    console.error('Error:', error);
   } finally {
-    mongoose.connection.close();
+    await mongoose.connection.close();
   }
-};
+}
 
 checkCollections();

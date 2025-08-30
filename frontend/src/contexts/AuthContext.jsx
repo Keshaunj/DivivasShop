@@ -44,61 +44,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      console.log('=== LOGIN PROCESS START ===');
-      console.log('1. Setting loading state to true');
       setLoading(true);
       setError(null);
       
-      console.log('2. Login credentials received:', { 
-        email: credentials.email, 
-        hasPassword: !!credentials.password,
-        passwordLength: credentials.password ? credentials.password.length : 0
-      });
-      
-      console.log('3. About to call authAPI.login...');
-      console.log('4. API base URL should be: http://localhost:3000/api');
-      
       const response = await authAPI.login(credentials);
-      
-      console.log('5. Login API call completed successfully!');
-      console.log('6. Response received:', response);
-      console.log('7. Setting user state with:', response.user);
       
       setUser(response.user);
       
-      console.log('8. Login process completed successfully');
-      console.log('=== LOGIN SUCCESS ===');
+      // Store the JWT token in localStorage for API calls
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
       
       return { success: true, message: 'Login successful!' };
     } catch (error) {
-      console.error('=== LOGIN FAILED ===');
-      console.error('Error type:', typeof error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      console.error('Full error object:', error);
-      
-      if (error.name === 'TypeError') {
-        console.error('This looks like a network/API error');
-        console.error('Check if backend is running on port 3000');
-        console.error('Check if frontend can reach http://localhost:3000');
-      }
-      
-      if (error.message.includes('fetch')) {
-        console.error('This looks like a fetch/network error');
-        console.error('Possible causes:');
-        console.error('- Backend not running');
-        console.error('- CORS issues');
-        console.error('- Network connectivity problems');
-      }
-      
       const errorMessage = error.message || 'Login failed';
       setError(errorMessage);
       return { success: false, message: errorMessage };
     } finally {
-      console.log('9. Setting loading state to false');
       setLoading(false);
-      console.log('=== LOGIN PROCESS END ===');
     }
   };
 
@@ -109,6 +73,11 @@ export const AuthProvider = ({ children }) => {
       
       const response = await authAPI.signup(userData);
       setUser(response.user);
+      
+      // Store the JWT token in localStorage for API calls
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
       
       return { success: true, message: 'Account created successfully!' };
     } catch (error) {
@@ -125,6 +94,8 @@ export const AuthProvider = ({ children }) => {
       await authAPI.logout();
       setUser(null);
       setError(null);
+      // Clear the JWT token from localStorage
+      localStorage.removeItem('token');
       return { success: true, message: 'Logged out successfully!' };
     } catch (error) {
       const errorMessage = error.message || 'Logout failed';

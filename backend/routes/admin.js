@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../utils/authentication/jwt'); // Updated import path
+const { authenticateAdminToken } = require('../utils/authentication/jwt'); // Use admin authentication
 const { isAdmin } = require('../middleware/permissions'); // Use new permission middleware
 const {
   getDashboardStats,
@@ -24,11 +24,25 @@ const {
   updateUserPermissions,
   removeAdminRole,
   getAdminInvites,
-  cancelAdminInvite
+  cancelAdminInvite,
+  adminLogin,
+  getAllAdmins,
+  getAdminDetails,
+  updateAdmin,
+  deleteAdmin,
+  updateAdminStatus,
+  updateAdminPermissions,
+  searchAdmins,
+  getAllCustomers,
+  getAllBusinessOwners,
+  promoteUser
 } = require('../controllers/adminController');
 
-// Apply authentication and admin middleware to all routes
-router.use(authenticateToken);
+// Admin login route (no authentication required)
+router.post('/login', adminLogin);
+
+// Apply admin authentication and admin middleware to all other routes
+router.use(authenticateAdminToken);
 router.use(isAdmin);
 
 // Dashboard
@@ -58,11 +72,25 @@ router.put('/users/:id/email', updateUserEmail);
 router.put('/users/:id/status', updateUserStatus);
 router.delete('/users/:id', removeUser);
 
+// Customer and Business Owner Management
+router.get('/customers', getAllCustomers);
+router.get('/business-owners', getAllBusinessOwners);
+router.put('/users/:id/promote', promoteUser);
+
 // Admin Management
 router.post('/invite', inviteAdmin);
 router.put('/users/:id/permissions', updateUserPermissions);
 router.put('/users/:id/remove-admin', removeAdminRole);
 router.get('/invites', getAdminInvites);
 router.delete('/invites/:id/cancel', cancelAdminInvite);
+
+// Admin Users Management
+router.get('/admins', getAllAdmins);
+router.get('/admins/:id', getAdminDetails);
+router.put('/admins/:id', updateAdmin);
+router.delete('/admins/:id', deleteAdmin);
+router.put('/admins/:id/status', updateAdminStatus);
+router.put('/admins/:id/permissions', updateAdminPermissions);
+router.get('/admins/search', searchAdmins);
 
 module.exports = router; 

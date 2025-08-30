@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs')
-const User = require('../models/users')
+const { Customer, BusinessOwner, Manager, Support, Viewer, Admin } = require('../models/users')
 
 const getUserDashboard = (req,res) => {
     res.json({
@@ -22,10 +22,15 @@ const updateUserProfile = async (req, res) => {
 
     // Check if username is being updated and if it's unique
     if (updates.username) {
-      const existingUser = await User.findOne({ 
-        username: updates.username, 
-        _id: { $ne: userId } // Exclude current user
-      });
+      // Check across all collections
+      const existingUser = await Promise.race([
+        Customer.findOne({ username: updates.username, _id: { $ne: userId } }),
+        BusinessOwner.findOne({ username: updates.username, _id: { $ne: userId } }),
+        Manager.findOne({ username: updates.username, _id: { $ne: userId } }),
+        Support.findOne({ username: updates.username, _id: { $ne: userId } }),
+        Viewer.findOne({ username: updates.username, _id: { $ne: userId } }),
+        Admin.findOne({ username: updates.username, _id: { $ne: userId } })
+      ]);
       
       if (existingUser) {
         return res.status(400).json({ message: 'Username is already taken. Please choose a different username.' });
@@ -42,7 +47,24 @@ const updateUserProfile = async (req, res) => {
       address: updates.address
     };
 
-    const updatedUser = await User.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    // Find and update user in the appropriate collection
+    let updatedUser = await Customer.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    if (!updatedUser) {
+      updatedUser = await BusinessOwner.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    }
+    if (!updatedUser) {
+      updatedUser = await Manager.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    }
+    if (!updatedUser) {
+      updatedUser = await Support.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    }
+    if (!updatedUser) {
+      updatedUser = await Viewer.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    }
+    if (!updatedUser) {
+      updatedUser = await Admin.findByIdAndUpdate(userId, allowedUpdates, { new: true }).select('-password');
+    }
+    
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
 
     res.json(updatedUser);
@@ -56,7 +78,24 @@ const getUserProfile = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const user = await User.findById(userId).select('+password');
+    // Find user in any collection
+    let user = await Customer.findById(userId).select('+password');
+    if (!user) {
+      user = await BusinessOwner.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Manager.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Support.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Viewer.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Admin.findById(userId).select('+password');
+    }
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -72,9 +111,8 @@ const changeUserPassword = async (req, res) => {
   const userId = req.user?._id;
 
   try {
+    // Security: Don't log password details
     console.log('Password change request for user:', userId);
-    console.log('Old password provided:', !!oldPassword);
-    console.log('New password provided:', !!newPassword);
 
     // Validate input
     if (!oldPassword || !newPassword) {
@@ -85,12 +123,29 @@ const changeUserPassword = async (req, res) => {
       return res.status(400).json({ message: 'New password must be at least 6 characters long' });
     }
 
-    const user = await User.findById(userId).select('+password');
+    // Find user in any collection
+    let user = await Customer.findById(userId).select('+password');
+    if (!user) {
+      user = await BusinessOwner.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Manager.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Support.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Viewer.findById(userId).select('+password');
+    }
+    if (!user) {
+      user = await Admin.findById(userId).select('+password');
+    }
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    console.log('User found, has password:', !!user.password);
+    // Security: Don't log password details
 
     // Check if user has a password (for users created without password)
     if (!user.password) {
@@ -99,7 +154,7 @@ const changeUserPassword = async (req, res) => {
 
     // Check if current password is correct
     const isMatch = await bcrypt.compare(oldPassword, user.password);
-    console.log('Password match result:', isMatch);
+    // Security: Don't log password details
     
     if (!isMatch) {
       return res.status(400).json({ message: 'Current password is incorrect. Please try again.' });
@@ -112,13 +167,11 @@ const changeUserPassword = async (req, res) => {
     }
 
     // Set the new password (pre-save hook will hash it)
-    console.log('Setting new password, length:', newPassword.length);
+    // Security: Don't log password details
     user.password = newPassword;
 
     await user.save();
     console.log('Password updated successfully for user:', userId);
-    console.log('New password hash length:', user.password.length);
-    console.log('New password hash starts with $2b$:', user.password.startsWith('$2b$'));
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
@@ -130,7 +183,24 @@ const changeUserPassword = async (req, res) => {
 const deleteUserAccount = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const deleted = await User.findByIdAndDelete(userId);
+    // Find and delete user from the appropriate collection
+    let deleted = await Customer.findByIdAndDelete(userId);
+    if (!deleted) {
+      deleted = await BusinessOwner.findByIdAndDelete(userId);
+    }
+    if (!deleted) {
+      deleted = await Manager.findByIdAndDelete(userId);
+    }
+    if (!deleted) {
+      deleted = await Support.findByIdAndDelete(userId);
+    }
+    if (!deleted) {
+      deleted = await Viewer.findByIdAndDelete(userId);
+    }
+    if (!deleted) {
+      deleted = await Admin.findByIdAndDelete(userId);
+    }
+    
     if (!deleted) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'Account deleted successfully' });
@@ -144,7 +214,24 @@ const addAddress = async (req, res) => {
     const userId = req.user?._id;
     const { street, city, state, zip, country } = req.body;
 
-    const user = await User.findById(userId);
+    // Find user in any collection
+    let user = await Customer.findById(userId);
+    if (!user) {
+      user = await BusinessOwner.findById(userId);
+    }
+    if (!user) {
+      user = await Manager.findById(userId);
+    }
+    if (!user) {
+      user = await Support.findById(userId);
+    }
+    if (!user) {
+      user = await Viewer.findById(userId);
+    }
+    if (!user) {
+      user = await Admin.findById(userId);
+    }
+    
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (user.address && user.address.street) {
@@ -165,7 +252,24 @@ const updateAddress = async (req, res) => {
     const userId = req.user?._id;
     const { street, city, state, zip, country } = req.body;
 
-    const user = await User.findById(userId);
+    // Find user in any collection
+    let user = await Customer.findById(userId);
+    if (!user) {
+      user = await BusinessOwner.findById(userId);
+    }
+    if (!user) {
+      user = await Manager.findById(userId);
+    }
+    if (!user) {
+      user = await Support.findById(userId);
+    }
+    if (!user) {
+      user = await Viewer.findById(userId);
+    }
+    if (!user) {
+      user = await Admin.findById(userId);
+    }
+    
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.address = {

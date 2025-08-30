@@ -65,8 +65,24 @@ const isAdmin = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Super admin
-    if (req.user.role === 'admin' && req.user.isAdmin) {
+    console.log('🔍 Admin check - User:', {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role,
+      isAdmin: req.user.isAdmin,
+      userType: req.user.userType,
+      modelName: req.user.constructor.modelName
+    });
+
+    // Super admin from Admin collection
+    if (req.user.role === 'admin' || req.user.isAdmin === true) {
+      console.log('✅ Super admin access granted');
+      return next();
+    }
+
+    // Check if user is from Admin collection (corporate portal users)
+    if (req.user.userType === 'admin' || req.user.constructor.modelName === 'Admin') {
+      console.log('✅ Admin collection user access granted');
       return next();
     }
 
@@ -76,11 +92,13 @@ const isAdmin = async (req, res, next) => {
       permission.actions.includes('read')
     );
 
-    if (!hasAdminPermission) {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (hasAdminPermission) {
+      console.log('✅ Admin permission access granted');
+      return next();
     }
 
-    next();
+    console.log('❌ Admin access denied - no valid admin credentials');
+    return res.status(403).json({ message: 'Admin access required' });
   } catch (error) {
     console.error('Admin check error:', error);
     res.status(500).json({ message: 'Admin check failed' });

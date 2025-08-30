@@ -41,7 +41,6 @@ const adminInviteSchema = new mongoose.Schema({
   },
   token: {
     type: String,
-    required: true,
     unique: true
   },
   notes: {
@@ -54,7 +53,7 @@ const adminInviteSchema = new mongoose.Schema({
 
 // Index for email and token lookups
 adminInviteSchema.index({ email: 1 });
-adminInviteSchema.index({ token: 1 });
+adminInviteSchema.index({ token: 1 }, { unique: true });
 adminInviteSchema.index({ expiresAt: 1 });
 
 // Check if invite is expired
@@ -82,20 +81,28 @@ adminInviteSchema.methods.generateToken = function() {
   return this.token;
 };
 
-// Pre-save middleware to generate token if not exists
+// Single pre-save middleware to handle all pre-save operations
 adminInviteSchema.pre('save', function(next) {
-  if (!this.token) {
-    this.generateToken();
+  try {
+    // Generate token if not exists
+    if (!this.token) {
+      this.generateToken();
+    }
+    
+    // Check expiration
+    if (this.isExpired() && this.status === 'pending') {
+      this.status = 'expired';
+    }
+    
+    // Ensure permissions is always an array
+    if (!Array.isArray(this.permissions)) {
+      this.permissions = [];
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
-});
-
-// Pre-save middleware to check expiration
-adminInviteSchema.pre('save', function(next) {
-  if (this.isExpired() && this.status === 'pending') {
-    this.status = 'expired';
-  }
-  next();
 });
 
 module.exports = mongoose.model('AdminInvite', adminInviteSchema);

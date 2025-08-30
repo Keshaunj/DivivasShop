@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const BusinessOwner = require('../../models/businessOwners');
+const { BusinessOwner } = require('../../models/users');
 require('dotenv').config();
 
 // Connect to MongoDB

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { BusinessOwnerNotificationProvider } from './contexts/business-owner/BusinessOwnerNotificationContext';
+import { AdminAuthProvider } from './contexts/admin/AdminAuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/customer/Dashboard';
@@ -14,6 +15,7 @@ import ProfilePage from './pages/customer/ProfilePage';
 import CorporatePortal from './pages/admin/corporate-portal';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import SuperAdminPanel from './pages/admin/SuperAdminPanel';
+import CustomerManagement from './pages/admin/customer-management/CustomerManagement';
 import Footer from './components/Footer';
 import BusinessOwnerNotificationModal from './components/business-owner/BusinessOwnerNotificationModal';
 
@@ -34,16 +36,25 @@ export default function App() {
                   <Route path="/gift-sets" element={<GiftSetsPage />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/corporate" element={<CorporatePortal />} />
+                  <Route path="/corporate" element={
+                    <AdminAuthProvider>
+                      <CorporatePortal />
+                    </AdminAuthProvider>
+                  } />
                   <Route path="/admin" element={
-                    <ProtectedRoute requireAdmin={true}>
+                    <AdminAuthProvider>
                       <AdminDashboard />
-                    </ProtectedRoute>
+                    </AdminAuthProvider>
                   } />
                   <Route path="/super-admin" element={
-                    <ProtectedRoute requireSuperAdmin={true}>
+                    <AdminAuthProvider>
                       <SuperAdminPanel />
-                    </ProtectedRoute>
+                    </AdminAuthProvider>
+                  } />
+                  <Route path="/customer-management" element={
+                    <AdminAuthProvider>
+                      <CustomerManagement />
+                    </AdminAuthProvider>
                   } />
                 </Routes>
               </main>

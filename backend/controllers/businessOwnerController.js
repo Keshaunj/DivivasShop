@@ -1,4 +1,4 @@
-const BusinessOwner = require('../models/businessOwners');
+const { BusinessOwner } = require('../models/users');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT token for business owner

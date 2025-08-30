@@ -18,6 +18,15 @@ const getAuthHeaders = () => {
   };
 };
 
+// Helper function to get admin auth headers
+const getAdminAuthHeaders = () => {
+  const token = localStorage.getItem('adminToken'); // Assuming adminToken is stored in localStorage
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
+  };
+};
+
 // Authentication API
 export const authAPI = {
   // Sign up new user
@@ -35,14 +44,7 @@ export const authAPI = {
 
   // Login user
   login: async (credentials) => {
-    console.log('=== AUTH API LOGIN START ===');
-    console.log('1. Login function called with credentials:', { 
-      email: credentials.email, 
-      hasPassword: !!credentials.password 
-    });
-    
     const url = `${API_BASE_URL}/auth/login`;
-    console.log('2. Making request to URL:', url);
     
     const requestOptions = {
       method: 'POST',
@@ -53,20 +55,10 @@ export const authAPI = {
       body: JSON.stringify(credentials),
     };
     
-    console.log('3. Request options:', {
-      method: requestOptions.method,
-      headers: requestOptions.headers,
-      credentials: requestOptions.credentials,
-      bodyLength: requestOptions.body.length
-    });
-    
-    console.log('4. About to make fetch request...');
-    
     try {
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error('5. FETCH TIMEOUT - Request taking too long, aborting...');
         controller.abort();
       }, 5000); // 5 second timeout
       
@@ -76,41 +68,15 @@ export const authAPI = {
       });
       
       clearTimeout(timeoutId);
-      console.log('5. Fetch response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
       
       if (!response.ok) {
-        console.error('6. Response not OK, calling handleResponse...');
         return handleResponse(response);
       }
       
-      console.log('6. Response is OK, parsing JSON...');
       const data = await response.json();
-      console.log('7. JSON parsed successfully:', data);
-      console.log('=== AUTH API LOGIN SUCCESS ===');
       return data;
       
     } catch (fetchError) {
-      console.error('=== AUTH API LOGIN FETCH ERROR ===');
-      console.error('Fetch error type:', typeof fetchError);
-      console.error('Fetch error name:', fetchError.name);
-      console.error('Fetch error message:', fetchError.message);
-      console.error('Fetch error stack:', fetchError.stack);
-      console.error('Full fetch error:', fetchError);
-      
-      if (fetchError.name === 'AbortError') {
-        console.error('REQUEST TIMED OUT - Backend is not responding within 5 seconds');
-        console.error('Possible causes:');
-        console.error('- Backend server crashed or stopped');
-        console.error('- Backend is hanging on the login route');
-        console.error('- Database connection issues');
-        console.error('- Backend process is frozen');
-      }
-      
       throw fetchError;
     }
   },
@@ -268,10 +234,22 @@ export const productsAPI = {
 
 // Admin API
 export const adminAPI = {
+  // Admin login for corporate portal
+  adminLogin: async (email, password) => {
+    const response = await fetch(`${API_BASE_URL}/admin/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    return handleResponse(response);
+  },
+
   // Get admin dashboard stats
   getDashboardStats: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -280,7 +258,7 @@ export const adminAPI = {
   // Products management
   getAllProducts: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/products`, {
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -289,7 +267,7 @@ export const adminAPI = {
   addProduct: async (productData) => {
     const response = await fetch(`${API_BASE_URL}/admin/products`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify(productData),
     });
@@ -299,7 +277,7 @@ export const adminAPI = {
   updateProduct: async (id, productData) => {
     const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify(productData),
     });
@@ -309,7 +287,7 @@ export const adminAPI = {
   deleteProduct: async (id) => {
     const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
       method: 'DELETE',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -318,7 +296,7 @@ export const adminAPI = {
   // Categories management
   getAllCategories: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/categories`, {
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -327,7 +305,7 @@ export const adminAPI = {
   addCategory: async (categoryData) => {
     const response = await fetch(`${API_BASE_URL}/admin/categories`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify(categoryData),
     });
@@ -337,7 +315,7 @@ export const adminAPI = {
   updateCategory: async (categoryId, categoryData) => {
     const response = await fetch(`${API_BASE_URL}/admin/categories/${categoryId}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify(categoryData),
     });
@@ -347,7 +325,7 @@ export const adminAPI = {
   deleteCategory: async (categoryId) => {
     const response = await fetch(`${API_BASE_URL}/admin/categories/${categoryId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -356,7 +334,7 @@ export const adminAPI = {
   // Orders management
   getAllOrders: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/orders`, {
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -365,7 +343,7 @@ export const adminAPI = {
   updateOrderStatus: async (orderId, status) => {
     const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}/status`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ status }),
     });
@@ -374,8 +352,10 @@ export const adminAPI = {
 
   // Users management
   getAllUsers: async () => {
+    const headers = getAdminAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/admin/users`, {
-      headers: getAuthHeaders(),
+      headers,
       credentials: 'include',
     });
     return handleResponse(response);
@@ -384,7 +364,7 @@ export const adminAPI = {
   updateUserRole: async (userId, role) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ role }),
     });
@@ -394,7 +374,7 @@ export const adminAPI = {
   updateUserBusinessInfo: async (userId, businessInfo) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/business-info`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ businessInfo }),
     });
@@ -404,7 +384,7 @@ export const adminAPI = {
   updateUserEmail: async (userId, email) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/email`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ email }),
     });
@@ -414,7 +394,7 @@ export const adminAPI = {
   removeUser: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -423,7 +403,7 @@ export const adminAPI = {
   updateUserStatus: async (userId, isActive) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ isActive }),
     });
@@ -434,55 +414,169 @@ export const adminAPI = {
   inviteAdmin: async (inviteData) => {
     const response = await fetch(`${API_BASE_URL}/admin/invite`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify(inviteData),
     });
     return handleResponse(response);
   },
 
-  updateUserPermissions: async (userId, permissions) => {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/permissions`, {
+  // Get all admin users
+  getAllAdmins: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Update admin user
+  updateAdmin: async (adminId, updateData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(updateData),
+    });
+    return handleResponse(response);
+  },
+
+  // Delete admin user
+  deleteAdmin: async (adminId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}`, {
+      method: 'DELETE',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Update admin status (active/inactive)
+  updateAdminStatus: async (adminId, isActive) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}/status`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ isActive }),
+    });
+    return handleResponse(response);
+  },
+
+  // Update admin permissions
+  updateAdminPermissions: async (adminId, permissions) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}/permissions`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ permissions }),
     });
     return handleResponse(response);
   },
 
+  // Remove admin role
   removeAdminRole: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/remove-admin`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
   },
 
-  // Remove admin role (frontend version)
-  removeAdminRoleFrontend: async (userId) => {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/remove-admin`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
-    return handleResponse(response);
-  },
-
+  // Get admin invites
   getAdminInvites: async () => {
     const response = await fetch(`${API_BASE_URL}/admin/invites`, {
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
   },
 
+  // Cancel admin invite
   cancelAdminInvite: async (inviteId) => {
     const response = await fetch(`${API_BASE_URL}/admin/invites/${inviteId}/cancel`, {
       method: 'DELETE',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Get admin details
+  getAdminDetails: async (adminId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Search admins
+  searchAdmins: async (searchTerm) => {
+    const response = await fetch(`${API_BASE_URL}/admin/admins/search?q=${encodeURIComponent(searchTerm)}`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Get all customers
+  getAllCustomers: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/customers`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Get all business owners
+  getAllBusinessOwners: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/business-owners`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Update user (generic function for any collection)
+  updateUser: async (userId, updateData, collection) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ ...updateData, collection }),
+    });
+    return handleResponse(response);
+  },
+
+  // Delete user (generic function for any collection)
+  deleteUser: async (userId, collection) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  // Update user status (generic function for any collection)
+  updateUserStatus: async (userId, isActive, collection) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ isActive, collection }),
+    });
+    return handleResponse(response);
+  },
+
+  // Promote user to business owner or admin
+  promoteUser: async (userId, promoteData, collection) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/promote`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ ...promoteData, collection }),
     });
     return handleResponse(response);
   },

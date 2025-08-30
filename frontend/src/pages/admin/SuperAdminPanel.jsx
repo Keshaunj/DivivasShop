@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAdminAuth } from '../../contexts/admin/AdminAuthContext';
 import { adminAPI } from '../../proxyApi/api';
 
 const SuperAdminPanel = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { admin, isAdminAuthenticated, isSuperAdmin } = useAdminAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -19,13 +19,13 @@ const SuperAdminPanel = () => {
   const [message, setMessage] = useState('');
 
   // Check if user is super admin
-  const isSuperAdmin = user?.role === 'admin' && user?.isAdmin;
+  const isSuperAdminUser = isSuperAdmin();
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isSuperAdminUser) {
       loadData();
     }
-  }, [isSuperAdmin]);
+  }, [isSuperAdminUser]);
 
   const loadData = async () => {
     try {
@@ -69,17 +69,17 @@ const SuperAdminPanel = () => {
     }
   };
 
-  if (!isAuthenticated || !isSuperAdmin) {
+  if (!isAdminAuthenticated() || !isSuperAdminUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600 mb-4">Super Admin access required.</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/corporate')}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Back to Home
+            Go to Admin Login
           </button>
         </div>
       </div>
@@ -124,7 +124,7 @@ const SuperAdminPanel = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm">
-                Super Admin: {user?.username || user?.email}
+                Super Admin: {admin?.username || admin?.email}
               </span>
               <button
                 onClick={() => navigate('/admin')}
@@ -248,7 +248,13 @@ const UserManagement = ({ users, message, setMessage, onRefresh }) => {
     businessInfo: {
       businessName: '',
       businessType: '',
-      businessAddress: '',
+      businessAddress: {
+        street: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: ''
+      },
       phone: '',
       website: ''
     }
@@ -271,7 +277,13 @@ const UserManagement = ({ users, message, setMessage, onRefresh }) => {
       businessInfo: {
         businessName: user.businessInfo?.businessName || '',
         businessType: user.businessInfo?.businessType || '',
-        businessAddress: user.businessInfo?.businessAddress || '',
+        businessAddress: {
+          street: user.businessInfo?.businessAddress?.street || '',
+          city: user.businessInfo?.businessAddress?.city || '',
+          state: user.businessInfo?.businessAddress?.state || '',
+          zip: user.businessInfo?.businessAddress?.zip || '',
+          country: user.businessInfo?.businessAddress?.country || ''
+        },
         phone: user.businessInfo?.phone || '',
         website: user.businessInfo?.website || ''
       }

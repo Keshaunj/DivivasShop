@@ -77,38 +77,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Subscription management fields
-  subscriptionStatus: {
-    type: String,
-    enum: ['active', 'inactive', 'revoked', 'pending'],
-    default: 'active'
-  },
-  subscriptionExpiry: {
-    type: Date,
-    default: null
-  },
-  accessRevokedAt: {
-    type: Date,
-    default: null
-  },
-  revocationReason: {
-    type: String,
-    default: null
-  },
-  // Billing information
-  billingCycle: {
-    type: String,
-    enum: ['monthly', 'yearly', 'none'],
-    default: 'none'
-  },
-  lastPaymentDate: {
-    type: Date,
-    default: null
-  },
-  nextPaymentDate: {
-    type: Date,
-    default: null
-  },
+
   // Notifications
   notifications: [{
     id: {
@@ -140,6 +109,56 @@ const userSchema = new mongoose.Schema({
     state: String,
     zip: String,
     country: String
+  },
+  // Business information for business owners and admins
+  businessInfo: {
+    businessName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    businessType: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    website: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    businessAddress: {
+      street: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      city: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      state: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      zip: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      country: {
+        type: String,
+        trim: true,
+        default: ''
+      }
+    }
   }
 }, {
   timestamps: true
@@ -147,21 +166,14 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.pre('save', async function(next) {
-  console.log('Pre-save hook triggered');
-  console.log('Password modified:', this.isModified('password'));
-  console.log('Password field exists:', !!this.password);
-  console.log('Password is string:', typeof this.password === 'string');
-
+  // Security: Don't log password details in production
   if (!this.isModified('password')) {
-    console.log('Password not modified, skipping hash');
     return next();
   }
   
   try {
-    console.log('Hashing password with salt rounds: 12');
     const salt = await bcrypt.genSalt(12); 
     this.password = await bcrypt.hash(this.password, salt);
-    console.log('Password hashed successfully, new hash length:', this.password.length);
     next();
   } catch (err) {
     console.error('Error in pre-save hook:', err);

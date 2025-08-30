@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const BusinessOwner = require('../../models/businessOwners');
+const { BusinessOwner } = require('../../models/users');
 
 // Authenticate business owner token middleware
 const authenticateBusinessOwnerToken = async (req, res, next) => {
