@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
+const User = require('../../models/users');
 
-// Generate JWT token for regular users
 const generateToken = (user) => {
   return jwt.sign(
-    { 
-      id: user._id, 
+    {
+      id: user._id,
       email: user.email,
       username: user.username,
       role: user.role,
@@ -15,7 +15,6 @@ const generateToken = (user) => {
   );
 };
 
-// Verify JWT token
 const verifyToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
@@ -24,7 +23,6 @@ const verifyToken = (token) => {
   }
 };
 
-// Authenticate token middleware for regular users
 const authenticateToken = async (req, res, next) => {
   try {
     const token = req.cookies.jwt || req.headers.authorization?.split(' ')[1];
@@ -42,41 +40,20 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Get full user data from database across all collections
-    const { Customer, BusinessOwner, Manager, Support, Viewer, Admin } = require('../../models/users');
-    
-    let user = await Customer.findById(decoded.id);
-    if (!user) {
-      user = await BusinessOwner.findById(decoded.id);
-    }
-    if (!user) {
-      user = await Manager.findById(decoded.id);
-    }
-    if (!user) {
-      user = await Support.findById(decoded.id);
-    }
-    if (!user) {
-      user = await Viewer.findById(decoded.id);
-    }
-    if (!user) {
-      user = await Admin.findById(decoded.id);
-    }
-    
+    const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({
         message: 'User not found'
       });
     }
 
-    // Ensure the user object has all necessary fields for admin operations
-    // This is important for admin portal functionality
+    // Flatten admin profile for middleware that expects permissions / adminLevel on user
     if (user.role === 'admin' || user.isAdmin) {
-      // Ensure admin users have the required fields
-      if (!user.permissions) {
-        user.permissions = [];
+      if (!user.permissions && user.adminProfile) {
+        user.permissions = user.adminProfile.permissions || [];
       }
-      if (!user.adminLevel) {
-        user.adminLevel = user.isAdmin ? 'super_admin' : 'standard';
+      if (!user.adminLevel && user.adminProfile) {
+        user.adminLevel = user.adminProfile.adminLevel || (user.isAdmin ? 'super_admin' : 'standard');
       }
     }
 
@@ -90,7 +67,6 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Authenticate admin token middleware for admin portal
 const authenticateAdminToken = async (req, res, next) => {
   try {
     const token = req.cookies.adminToken || req.headers.authorization?.split(' ')[1];
@@ -108,28 +84,23 @@ const authenticateAdminToken = async (req, res, next) => {
       });
     }
 
-    // Get full admin user data from database
-    const { Admin } = require('../../models/users');
-    
-    let user = await Admin.findById(decoded.id);
-    
+    const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({
         message: 'Admin user not found'
       });
     }
 
-    // Ensure the admin user object has all necessary fields for admin operations
-    // Add role and isAdmin fields that the middleware expects
-    user.role = 'admin'; // Admin users always have admin role
-    user.isAdmin = true; // Admin users are always admins
-    
-    if (!user.permissions) {
-      user.permissions = [];
+    if (user.role !== 'admin' && !user.isAdmin) {
+      return res.status(401).json({
+        message: 'Admin access required'
+      });
     }
-    if (!user.adminLevel) {
-      user.adminLevel = 'admin';
-    }
+
+    user.role = 'admin';
+    user.isAdmin = true;
+    user.permissions = user.adminProfile?.permissions || [];
+    user.adminLevel = user.adminProfile?.adminLevel || 'admin';
 
     req.user = user;
     next();
@@ -146,4 +117,4 @@ module.exports = {
   verifyToken,
   authenticateToken,
   authenticateAdminToken
-}; 
+};

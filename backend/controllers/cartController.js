@@ -1,4 +1,4 @@
-const { Customer, BusinessOwner, Manager, Support, Viewer, Admin } = require('../models/users');
+const User = require('../models/users');
 const Product = require('../models/products');
 const Order = require('../models/order');
 
@@ -14,24 +14,7 @@ const addToCart = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Get user and their cart from any collection
-    let user = await Customer.findById(userId);
-    if (!user) {
-      user = await BusinessOwner.findById(userId);
-    }
-    if (!user) {
-      user = await Manager.findById(userId);
-    }
-    if (!user) {
-      user = await Support.findById(userId);
-    }
-    if (!user) {
-      user = await Viewer.findById(userId);
-    }
-    if (!user) {
-      user = await Admin.findById(userId);
-    }
-    
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -81,29 +64,10 @@ const getCart = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Find user in any collection
-    let user = await Customer.findById(userId);
-    if (!user) {
-      user = await BusinessOwner.findById(userId);
-    }
-    if (!user) {
-      user = await Manager.findById(userId);
-    }
-    if (!user) {
-      user = await Support.findById(userId);
-    }
-    if (!user) {
-      user = await Viewer.findById(userId);
-    }
-    if (!user) {
-      user = await Admin.findById(userId);
-    }
-
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Populate cart products
     await user.populate('cart.product');
 
     res.json({
@@ -128,24 +92,7 @@ const updateCartItem = async (req, res) => {
       return res.status(400).json({ message: 'Quantity must be greater than 0' });
     }
 
-    // Find user in any collection
-    let user = await Customer.findById(userId);
-    if (!user) {
-      user = await BusinessOwner.findById(userId);
-    }
-    if (!user) {
-      user = await Manager.findById(userId);
-    }
-    if (!user) {
-      user = await Support.findById(userId);
-    }
-    if (!user) {
-      user = await Viewer.findById(userId);
-    }
-    if (!user) {
-      user = await Admin.findById(userId);
-    }
-    
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -182,24 +129,7 @@ const removeFromCart = async (req, res) => {
     const { productId } = req.params;
     const userId = req.user.id;
 
-    // Find user in any collection
-    let user = await Customer.findById(userId);
-    if (!user) {
-      user = await BusinessOwner.findById(userId);
-    }
-    if (!user) {
-      user = await Manager.findById(userId);
-    }
-    if (!user) {
-      user = await Support.findById(userId);
-    }
-    if (!user) {
-      user = await Viewer.findById(userId);
-    }
-    if (!user) {
-      user = await Admin.findById(userId);
-    }
-    
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

@@ -8,13 +8,30 @@ const adminInviteSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'support', 'viewer'],
+    enum: ['admin', 'business_owner', 'manager', 'support', 'viewer'],
     default: 'admin'
+  },
+  firstName: {
+    type: String,
+    default: ''
+  },
+  lastName: {
+    type: String,
+    default: ''
+  },
+  businessInfo: {
+    businessName: String,
+    businessType: {
+      type: String,
+      enum: ['retail', 'wholesale', 'manufacturing', 'service', 'food_beverage', 'health_beauty', 'fashion', 'home_garden', 'electronics', 'other'],
+      default: 'retail'
+    },
+    businessDescription: String
   },
   permissions: [{
     resource: {
       type: String,
-      enum: ['products', 'categories', 'orders', 'users', 'analytics', 'settings', 'admin_management']
+      enum: ['products', 'categories', 'orders', 'users', 'customers', 'analytics', 'settings', 'admin_management', 'team_management']
     },
     actions: [{
       type: String,

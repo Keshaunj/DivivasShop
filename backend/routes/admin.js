@@ -35,7 +35,8 @@ const {
   searchAdmins,
   getAllCustomers,
   getAllBusinessOwners,
-  promoteUser
+  promoteUser,
+  getAdminProfile
 } = require('../controllers/adminController');
 
 // Admin login route (no authentication required)
@@ -47,6 +48,7 @@ router.use(isAdmin);
 
 // Dashboard
 router.get('/stats', getDashboardStats);
+router.get('/profile', getAdminProfile);
 
 // Products
 router.get('/products', getAllProducts);

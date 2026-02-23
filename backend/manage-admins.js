@@ -22,69 +22,13 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/divias-sh
   useUnifiedTopology: true,
 });
 
-// Import all user models
-const { Customer, BusinessOwner, Manager, Support, Viewer, Admin } = require('./models/users');
+const User = require('./models/users');
 
-// Function to find super admin across all collections
 const findSuperAdminAcrossCollections = async () => {
-  let superAdmin = null;
-  let collectionName = null;
-  
-  // Check Admin collection first
-  superAdmin = await Admin.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
+  const superAdmin = await User.findOne({
+    $or: [{ role: 'admin', isAdmin: true }, { 'adminProfile.superadmin': true }]
   });
-  if (superAdmin) {
-    collectionName = 'Admin';
-    return { superAdmin, collectionName };
-  }
-  
-  // Check Customer collection
-  superAdmin = await Customer.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
-  });
-  if (superAdmin) {
-    collectionName = 'Customer';
-    return { superAdmin, collectionName };
-  }
-  
-  // Check BusinessOwner collection
-  superAdmin = await BusinessOwner.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
-  });
-  if (superAdmin) {
-    collectionName = 'BusinessOwner';
-    return { superAdmin, collectionName };
-  }
-  
-  // Check Manager collection
-  superAdmin = await Manager.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
-  });
-  if (superAdmin) {
-    collectionName = 'Manager';
-    return { superAdmin, collectionName };
-  }
-  
-  // Check Support collection
-  superAdmin = await Support.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
-  });
-  if (superAdmin) {
-    collectionName = 'Support';
-    return { superAdmin, collectionName };
-  }
-  
-  // Check Viewer collection
-  superAdmin = await Viewer.findOne({ 
-    $or: [{ role: 'admin', isAdmin: true }, { superadmin: true }] 
-  });
-  if (superAdmin) {
-    collectionName = 'Viewer';
-    return { superAdmin, collectionName };
-  }
-  
-  return { superAdmin: null, collectionName: null };
+  return { superAdmin, collectionName: superAdmin ? superAdmin.role : null };
 };
 
 const showMainMenu = async () => {
@@ -105,28 +49,9 @@ const showMainMenu = async () => {
     // Get current admin count across all collections
     let totalAdminCount = 0;
     
-    // Count admins in each collection
-    const customerAdmins = await Customer.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
+    totalAdminCount = await User.countDocuments({
+      $or: [{ role: 'admin' }, { isAdmin: true }]
     });
-    const businessOwnerAdmins = await BusinessOwner.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    });
-    const managerAdmins = await Manager.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    });
-    const supportAdmins = await Support.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    });
-    const viewerAdmins = await Viewer.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    });
-    const adminCollectionAdmins = await Admin.countDocuments({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    });
-    
-    totalAdminCount = customerAdmins + businessOwnerAdmins + managerAdmins + 
-                     supportAdmins + viewerAdmins + adminCollectionAdmins;
     
     console.log('\n' + '='.repeat(60));
     console.log('👑 ADMIN MANAGEMENT CONSOLE');
@@ -219,7 +144,7 @@ const viewAllAdmins = async () => {
     console.log('\n📊 ALL ADMINS IN SYSTEM');
     console.log('-'.repeat(50));
     
-    const admins = await Admin.find({ 
+    const admins = await User.find({ 
       $or: [{ role: 'admin' }, { isAdmin: true }] 
     }).sort({ createdAt: -1 });
     
@@ -273,7 +198,7 @@ const createNewAdmin = async () => {
     }
 
     // Check if user already exists
-    const existingUser = await Admin.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       console.log(`👤 User found: ${existingUser.email}`);
       console.log(`   Current role: ${existingUser.role} | Admin: ${existingUser.isAdmin ? 'Yes' : 'No'}`);
@@ -380,12 +305,10 @@ const createNewAdmin = async () => {
     }
 
     if (existingUser) {
-      // Update existing user with admin permissions
-      await Admin.findByIdAndUpdate(existingUser._id, {
+      await User.findByIdAndUpdate(existingUser._id, {
         role: role,
         isAdmin: isAdmin,
-        permissions: permissions,
-        invitedAt: new Date(),
+        'adminProfile.permissions': permissions,
         adminNotes: `Upgraded to ${role} on ${new Date().toISOString()}`
       });
       
@@ -394,10 +317,8 @@ const createNewAdmin = async () => {
       console.log('👑 New Role:', role);
       console.log('📋 Permissions:', permissions.length, 'resources');
     } else {
-      // Create new admin user
       const hashedPassword = await bcrypt.hash(password, 12);
-      
-      const newAdmin = new Admin({
+      await User.create({
         username: email.split('@')[0],
         email: email.toLowerCase(),
         password: hashedPassword,
@@ -405,12 +326,9 @@ const createNewAdmin = async () => {
         lastName: 'User',
         role: role,
         isAdmin: isAdmin,
-        permissions: permissions,
-        invitedAt: new Date(),
+        adminProfile: { permissions },
         isActive: true
       });
-
-      await newAdmin.save();
       
       console.log('\n✅ Admin user created successfully!');
       console.log('📧 Email:', email);
@@ -438,7 +356,7 @@ const editAdminPermissions = async () => {
     console.log('-'.repeat(35));
     
     const email = await question('📧 Enter admin email to edit: ');
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await User.findOne({ email: email.toLowerCase() });
     
     if (!admin) {
       console.log('❌ Admin not found');
@@ -516,11 +434,10 @@ const editAdminPermissions = async () => {
         return;
     }
 
-    // Update admin
-    await Admin.findByIdAndUpdate(admin._id, {
+    await User.findByIdAndUpdate(admin._id, {
       role: role,
       isAdmin: isAdmin,
-      permissions: permissions,
+      'adminProfile.permissions': permissions,
       adminNotes: `Role updated to ${role} on ${new Date().toISOString()}`
     });
     
@@ -540,7 +457,7 @@ const removeAdminRole = async () => {
     console.log('-'.repeat(30));
     
     // First, show current admins
-    const currentAdmins = await Admin.find({ 
+    const currentAdmins = await User.find({ 
       $or: [{ role: 'admin' }, { isAdmin: true }] 
     }).sort({ createdAt: -1 });
     
@@ -556,7 +473,7 @@ const removeAdminRole = async () => {
     });
     
     const email = await question('\n📧 Enter admin email to remove role: ');
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await User.findOne({ email: email.toLowerCase() });
     
     if (!admin) {
       console.log('❌ User not found');
@@ -586,10 +503,10 @@ const removeAdminRole = async () => {
     if (confirm.toLowerCase() === 'yes' || confirm.toLowerCase() === 'y') {
       console.log('\n⏳ Removing admin role...');
       
-      await Admin.findByIdAndUpdate(admin._id, {
-        role: 'user',
+      await User.findByIdAndUpdate(admin._id, {
+        role: 'customer',
         isAdmin: false,
-        permissions: [],
+        'adminProfile.permissions': [],
         adminNotes: `Admin role removed on ${new Date().toISOString()}`
       });
       
@@ -597,7 +514,7 @@ const removeAdminRole = async () => {
       console.log(`👤 ${admin.email} is now a regular user`);
       
       // Check if this was the last admin
-      const remainingAdmins = await Admin.countDocuments({ 
+      const remainingAdmins = await User.countDocuments({ 
         $or: [{ role: 'admin' }, { isAdmin: true }] 
       });
       
@@ -623,7 +540,7 @@ const searchAdmins = async () => {
     
     const searchTerm = await question('🔍 Enter search term (email, username, or role): ');
     
-    const admins = await Admin.find({
+    const admins = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -662,7 +579,7 @@ const viewAdminDetails = async () => {
     console.log('-'.repeat(25));
     
     const email = await question('📧 Enter admin email to view details: ');
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await User.findOne({ email: email.toLowerCase() });
     
     if (!admin) {
       console.log('❌ Admin not found');

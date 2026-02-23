@@ -1,7 +1,7 @@
 const Product = require('../models/products');
 const Category = require('../models/categories');
 const Order = require('../models/order');
-const { Customer, BusinessOwner, Manager, Support, Viewer, Admin } = require('../models/users');
+const User = require('../models/users');
 const jwt = require('jsonwebtoken');
 
 // Admin middleware to check if user is admin
@@ -32,222 +32,68 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
     
-    // Find user by email - PRIORITIZE ADMIN COLLECTION (CandleShop.admins)
-    console.log('\n🔍 STEP 1: Searching for user in Admin collection FIRST...');
-    
-    let user = null;
-    let userCollection = null;
-    
-    // Check Admin collection FIRST and PRIORITY for corporate portal access
-    user = await Admin.findOne({ email: email.toLowerCase() }).select('+password');
-    if (user) {
-      userCollection = 'Admin';
-      console.log('✅ Found in ADMIN collection - corporate portal access granted');
-      
-      // Admin collection users get automatic access - no need to check other collections
-      console.log('🔑 Admin collection user - automatic access granted');
-    } else {
-      console.log('⚠️ Not found in Admin collection, checking other collections as fallback...');
-      
-      // Check Customer collection
-      user = await Customer.findOne({ email: email.toLowerCase() }).select('+password');
-      if (user) {
-        userCollection = 'Customer';
-        console.log('✅ Found in CUSTOMER collection');
-      }
-    }
-    
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) {
-      // Check BusinessOwner collection
-      user = await BusinessOwner.findOne({ email: email.toLowerCase() }).select('+password');
-      if (user) {
-        userCollection = 'BusinessOwner';
-        console.log('✅ Found in BUSINESSOWNER collection');
-      }
+      return res.status(401).json({ message: 'Invalid credentials', code: 'USER_NOT_FOUND' });
     }
-    
-    if (!user) {
-      // Check Manager collection
-      user = await Manager.findOne({ email: email.toLowerCase() }).select('+password');
-      if (user) {
-        userCollection = 'Manager';
-        console.log('✅ Found in MANAGER collection');
-      }
-    }
-    
-    if (!user) {
-      // Check Support collection
-      user = await Support.findOne({ email: email.toLowerCase() }).select('+password');
-      if (user) {
-        userCollection = 'Support';
-        console.log('✅ Found in SUPPORT collection');
-      }
-    }
-    
-    if (!user) {
-      // Check Viewer collection
-      user = await Viewer.findOne({ email: email.toLowerCase() }).select('+password');
-      if (user) {
-        userCollection = 'Viewer';
-        console.log('✅ Found in VIEWER collection');
-      }
-    }
-    
-    if (!user) {
-      console.log('❌ User not found in ANY collection');
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    
-    console.log('\n📋 STEP 2: User details found:');
-    console.log('Collection:', userCollection);
-    console.log('ID:', user._id);
-    console.log('Email:', user.email);
-    console.log('Username:', user.username);
-    console.log('Role:', user.role);
-    console.log('isAdmin:', user.isAdmin);
-    console.log('isActive:', user.isActive);
-    console.log('Permissions:', JSON.stringify(user.permissions, null, 2));
-    console.log('Has password field:', !!user.password);
-    
-    // Check if user has admin privileges
-    console.log('\n🔑 STEP 3: Checking admin privileges...');
-    
-    // A user can have admin access if:
-    // 1. They are in the Admin collection (automatic access - CandleShop.admins)
-    // 2. They have role 'admin' OR isAdmin flag is true
-    // 3. They have admin permissions
-    const isInAdminCollection = userCollection === 'Admin';
-    const roleCheck = user.role === 'admin';
-    const isAdminFlagCheck = user.isAdmin === true;
-    const permissionsCheck = user.permissions && user.permissions.some(p => p.resource === 'admin_management');
-    
-    console.log('Is in Admin collection (CandleShop.admins):', isInAdminCollection);
-    console.log('Role check (user.role === "admin"):', roleCheck);
-    console.log('isAdmin flag check (user.isAdmin === true):', isAdminFlagCheck);
-    console.log('Permissions check (admin_management):', permissionsCheck);
-    
-    const hasAdminAccess = isInAdminCollection || roleCheck || isAdminFlagCheck || permissionsCheck;
-    console.log('🔑 FINAL ADMIN ACCESS CHECK:', hasAdminAccess);
-    
+
+    const permissions = user.adminProfile?.permissions || user.permissions || [];
+    const hasAdminAccess = user.role === 'admin' || user.isAdmin === true ||
+      (permissions && permissions.some(p => p.resource === 'admin_management'));
+
     if (!hasAdminAccess) {
-      console.log('\n❌ ADMIN ACCESS DENIED - REASON:');
-      console.log('- User not in Admin collection (CandleShop.admins)');
-      console.log('- User role is not "admin"');
-      console.log('- isAdmin flag is not true');
-      console.log('- No admin_management permissions found');
-      console.log('\n💡 TO FIX: User needs one of these:');
-      console.log('1. Be in Admin collection (CandleShop.admins) - PREFERRED for corporate portal');
-      console.log('2. role: "admin"');
-      console.log('3. isAdmin: true');
-      console.log('4. permissions with resource: "admin_management"');
-      
-      return res.status(403).json({ 
-        message: 'Admin access required. Contact your administrator to request access.',
-        debug: {
-          userRole: user.role,
-          isAdmin: user.isAdmin,
-          hasPermissions: !!user.permissions,
-          permissionsCount: user.permissions ? user.permissions.length : 0,
-          collection: userCollection
-        }
+      return res.status(403).json({
+        message: 'Admin access required. Ask an admin to run: node scripts/make-admin.js <your-email>',
+        code: 'NOT_ADMIN'
       });
     }
-    
-    // Check if user is active
-    console.log('\n📋 STEP 4: Checking account status...');
-    console.log('isActive:', user.isActive);
-    
+
     if (!user.isActive) {
-      console.log('❌ Account is deactivated');
-      return res.status(401).json({ message: 'Account is deactivated' });
+      return res.status(401).json({ message: 'Account is deactivated', code: 'DEACTIVATED' });
     }
-    
-    // Verify password using the user's comparePassword method
-    console.log('\n🔐 STEP 5: Verifying password...');
-    console.log('Password field exists:', !!user.password);
-    
-    if (!user.password) {
-      console.log('❌ No password field found - cannot verify password');
-      return res.status(401).json({ message: 'Invalid credentials - password field missing' });
-    }
-    
+
     const isPasswordValid = await user.comparePassword(password);
-    console.log('Password verification result:', isPasswordValid);
-    
     if (!isPasswordValid) {
-      console.log('❌ Password verification failed');
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials', code: 'WRONG_PASSWORD' });
     }
-    
-    console.log('✅ Password verified successfully');
-    
-    // Update last login
-    console.log('\n📋 STEP 6: Updating last login...');
+
     user.lastLogin = new Date();
     await user.save();
-    console.log('✅ Last login updated');
-    
-    // Determine admin level based on user's collection and permissions
-    console.log('\n🔑 STEP 7: Determining admin level...');
-    let adminLevel = 'standard';
-    
-    if (userCollection === 'Admin') {
-      // User is in Admin collection - use their admin level
-      adminLevel = user.adminLevel || 'admin';
-      console.log('👑 Admin level from Admin collection (CandleShop.admins):', adminLevel);
-    } else if (user.role === 'admin' && user.isAdmin === true) {
-      adminLevel = 'super_admin';
-      console.log('👑 Admin level: SUPER_ADMIN');
-    } else if (user.permissions && user.permissions.some(p => p.resource === 'admin_management')) {
-      adminLevel = 'admin';
-      console.log('🏢 Admin level: ADMIN');
-    } else {
-      console.log('🔧 Admin level: STANDARD');
-    }
-    
-    // Generate admin JWT token
-    console.log('\n🔐 STEP 8: Generating JWT token...');
+
+    const adminLevel = user.adminProfile?.adminLevel || (user.role === 'admin' && user.isAdmin ? 'super_admin' : 'admin');
     const adminToken = jwt.sign(
-      { 
-        id: user._id, 
+      {
+        id: user._id,
         email: user.email,
         username: user.username,
-        role: user.role,
-        isAdmin: user.isAdmin,
-        adminLevel: adminLevel,
-        permissions: user.permissions || []
+        role: 'admin',
+        isAdmin: true,
+        adminLevel,
+        permissions
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    console.log('✅ JWT token generated');
-    
-    // Return admin data (without password) and token
+
     const adminData = {
       _id: user._id,
       email: user.email,
       username: user.username,
-      role: user.role,
-      isAdmin: user.isAdmin,
-      adminLevel: adminLevel,
-      permissions: user.permissions || [],
+      role: 'admin',
+      isAdmin: true,
+      adminLevel,
+      permissions,
       firstName: user.firstName,
       lastName: user.lastName,
       isActive: user.isActive,
       lastLogin: user.lastLogin
     };
-    
-    console.log('\n✅ ADMIN LOGIN SUCCESSFUL!');
-    console.log('User:', user.email);
-    console.log('Admin level:', adminLevel);
-    console.log('Collection:', userCollection);
-    
+
     res.json({
       message: 'Admin login successful',
       admin: adminData,
       token: adminToken
     });
-    
   } catch (error) {
     console.error('❌ Admin login error:', error);
     res.status(500).json({ message: 'Login failed' });
@@ -296,7 +142,7 @@ const getDashboardStats = async (req, res) => {
         
         // Update user permissions in database
         try {
-          await Admin.findByIdAndUpdate(req.user._id, { permissions: defaultPermissions });
+          await User.findByIdAndUpdate(req.user._id, { 'adminProfile.permissions': defaultPermissions });
           console.log('✅ Updated user permissions in database');
         } catch (error) {
           console.log('⚠️ Could not update user permissions:', error.message);
@@ -323,12 +169,12 @@ const getDashboardStats = async (req, res) => {
         totalOrders = await Order.countDocuments();
         
         // Count users from all role-based collections
-        const customerCount = await Customer.countDocuments();
-        const businessOwnerCount = await BusinessOwner.countDocuments();
-        const managerCount = await Manager.countDocuments();
-        const supportCount = await Support.countDocuments();
-        const viewerCount = await Viewer.countDocuments();
-        const adminCount = await Admin.countDocuments();
+        const customerCount = await User.countDocuments({ role: 'customer' });
+        const businessOwnerCount = await User.countDocuments({ role: 'business_owner' });
+        const managerCount = await User.countDocuments({ role: 'manager' });
+        const supportCount = await User.countDocuments({ role: 'support' });
+        const viewerCount = await User.countDocuments({ role: 'viewer' });
+        const adminCount = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
         
         totalUsers = customerCount + businessOwnerCount + managerCount + supportCount + viewerCount + adminCount;
         totalBusinesses = businessOwnerCount;
@@ -621,26 +467,8 @@ const updateOrderStatus = async (req, res) => {
 // Get all users for admin
 const getAllUsers = async (req, res) => {
   try {
-    // Get users from all role-based collections
-    const [customers, businessOwners, managers, supports, viewers, admins] = await Promise.all([
-      Customer.find().select('-password'),
-      BusinessOwner.find().select('-password'),
-      Manager.find().select('-password'),
-      Support.find().select('-password'),
-      Viewer.find().select('-password'),
-      Admin.find().select('-password')
-    ]);
-
-    // Combine all users with their role information
-    const allUsers = [
-      ...customers.map(user => ({ ...user.toObject(), userType: 'customer' })),
-      ...businessOwners.map(user => ({ ...user.toObject(), userType: 'business_owner' })),
-      ...managers.map(user => ({ ...user.toObject(), userType: 'manager' })),
-      ...supports.map(user => ({ ...user.toObject(), userType: 'support' })),
-      ...viewers.map(user => ({ ...user.toObject(), userType: 'viewer' })),
-      ...admins.map(user => ({ ...user.toObject(), userType: 'admin' }))
-    ];
-
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    const allUsers = users.map(user => ({ ...user.toObject(), userType: user.role || 'customer' }));
     res.json(allUsers);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users', error: error.message });
@@ -660,63 +488,15 @@ const updateUserRole = async (req, res) => {
       });
     }
     
-    // Find user in any collection
-    let user = await Customer.findById(id);
-    let userCollection = 'Customer';
-    
-    if (!user) {
-      user = await BusinessOwner.findById(id);
-      userCollection = 'BusinessOwner';
-    }
-    if (!user) {
-      user = await Manager.findById(id);
-      userCollection = 'Manager';
-    }
-    if (!user) {
-      user = await Support.findById(id);
-      userCollection = 'Support';
-    }
-    if (!user) {
-      user = await Viewer.findById(id);
-      userCollection = 'Viewer';
-    }
-    if (!user) {
-      user = await Admin.findById(id);
-      userCollection = 'Admin';
-    }
-    
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Update role in the appropriate collection
     const updateData = { role };
     if (role === 'admin') {
       updateData.isAdmin = true;
     }
-    
-    let updatedUser;
-    switch (userCollection) {
-      case 'Customer':
-        updatedUser = await Customer.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-      case 'BusinessOwner':
-        updatedUser = await BusinessOwner.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-      case 'Manager':
-        updatedUser = await Manager.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-      case 'Support':
-        updatedUser = await Support.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-      case 'Viewer':
-        updatedUser = await Viewer.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-      case 'Admin':
-        updatedUser = await Admin.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
-        break;
-    }
-    
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Error updating user role', error: error.message });
@@ -728,64 +508,17 @@ const updateUserBusinessInfo = async (req, res) => {
   try {
     const { id } = req.params;
     const { businessInfo } = req.body;
-    
-    // Validate business info structure
     if (!businessInfo || typeof businessInfo !== 'object') {
       return res.status(400).json({ message: 'Invalid business information' });
     }
-    
-    // Try to find and update in BusinessOwner collection first
-    let updatedUser = await BusinessOwner.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       id,
-      { businessInfo },
+      { $set: { 'businessOwnerProfile.businessInfo': businessInfo } },
       { new: true }
     ).select('-password');
-    
-    if (!updatedUser) {
-      // If not found in BusinessOwner, try other collections
-      updatedUser = await Customer.findByIdAndUpdate(
-        id,
-        { businessInfo },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Manager.findByIdAndUpdate(
-        id,
-        { businessInfo },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Support.findByIdAndUpdate(
-        id,
-        { businessInfo },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Viewer.findByIdAndUpdate(
-        id,
-        { businessInfo },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Admin.findByIdAndUpdate(
-        id,
-        { businessInfo },
-        { new: true }
-      ).select('-password');
-    }
-    
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Error updating user business information', error: error.message });
@@ -804,65 +537,17 @@ const updateUserEmail = async (req, res) => {
     }
     
     // Check if new email is already taken by another user across all collections
-    const existingUser = await Promise.race([
-      Customer.findOne({ email, _id: { $ne: id } }),
-      BusinessOwner.findOne({ email, _id: { $ne: id } }),
-      Manager.findOne({ email, _id: { $ne: id } }),
-      Support.findOne({ email, _id: { $ne: id } }),
-      Viewer.findOne({ email, _id: { $ne: id } }),
-      Admin.findOne({ email, _id: { $ne: id } })
-    ]);
+    const existingUser = await User.findOne({ email: email.toLowerCase(), _id: { $ne: id } });
     
     if (existingUser) {
       return res.status(400).json({ message: 'Email is already taken by another user' });
     }
     
-    // Update user email in the appropriate collection
-    let updatedUser = await Customer.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       id,
-      { email },
+      { email: email.toLowerCase() },
       { new: true }
     ).select('-password');
-    
-    if (!updatedUser) {
-      updatedUser = await BusinessOwner.findByIdAndUpdate(
-        id,
-        { email },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Manager.findByIdAndUpdate(
-        id,
-        { email },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Support.findByIdAndUpdate(
-        id,
-        { email },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Viewer.findByIdAndUpdate(
-        id,
-        { email },
-        { new: true }
-      ).select('-password');
-    }
-    
-    if (!updatedUser) {
-      updatedUser = await Admin.findByIdAndUpdate(
-        id,
-        { email },
-        { new: true }
-      ).select('-password');
-    }
     
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
@@ -885,63 +570,14 @@ const updateUserStatus = async (req, res) => {
       return res.status(400).json({ message: 'isActive must be a boolean value' });
     }
     
-    // Check if user exists in any collection
-    let user = await Customer.findById(id);
-    let userCollection = 'Customer';
-    
-    if (!user) {
-      user = await BusinessOwner.findById(id);
-      userCollection = 'BusinessOwner';
-    }
-    if (!user) {
-      user = await Manager.findById(id);
-      userCollection = 'Manager';
-    }
-    if (!user) {
-      user = await Support.findById(id);
-      userCollection = 'Support';
-    }
-    if (!user) {
-      user = await Viewer.findById(id);
-      userCollection = 'Viewer';
-    }
-    if (!user) {
-      user = await Admin.findById(id);
-      userCollection = 'Admin';
-    }
-    
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Prevent deactivating super admins
     if (user.role === 'admin' && user.isAdmin === true && !isActive) {
       return res.status(403).json({ message: 'Cannot deactivate super admin users. Contact another super admin if needed.' });
     }
-    
-    // Update user status in the appropriate collection
-    let updatedUser;
-    switch (userCollection) {
-      case 'Customer':
-        updatedUser = await Customer.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-      case 'BusinessOwner':
-        updatedUser = await BusinessOwner.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-      case 'Manager':
-        updatedUser = await Manager.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-      case 'Support':
-        updatedUser = await Support.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-      case 'Viewer':
-        updatedUser = await Viewer.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-      case 'Admin':
-        updatedUser = await Admin.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
-        break;
-    }
-    
+    const updatedUser = await User.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: 'Error updating user status', error: error.message });
@@ -953,70 +589,18 @@ const removeUser = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Check if user exists in any collection
-    let user = await Customer.findById(id);
-    let userCollection = 'Customer';
-    
-    if (!user) {
-      user = await BusinessOwner.findById(id);
-      userCollection = 'BusinessOwner';
-    }
-    if (!user) {
-      user = await Manager.findById(id);
-      userCollection = 'Manager';
-    }
-    if (!user) {
-      user = await Support.findById(id);
-      userCollection = 'Support';
-    }
-    if (!user) {
-      user = await Viewer.findById(id);
-      userCollection = 'Viewer';
-    }
-    if (!user) {
-      user = await Admin.findById(id);
-      userCollection = 'Admin';
-    }
-    
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Prevent removing super admins (including the requesting user)
     if (user.role === 'admin' && user.isAdmin === true) {
       return res.status(403).json({ message: 'Cannot remove super admin users. Contact another super admin if needed.' });
     }
-    
-    // Prevent removing the last super admin
-    if (user.role === 'admin') {
-      const superAdminCount = await Admin.countDocuments({ role: 'admin', isAdmin: true });
-      if (superAdminCount <= 1) {
-        return res.status(400).json({ message: 'Cannot remove the last super admin. At least one super admin must remain.' });
-      }
+    const superAdminCount = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
+    if (superAdminCount <= 1) {
+      return res.status(400).json({ message: 'Cannot remove the last super admin. At least one super admin must remain.' });
     }
-    
-    // Remove the user from the appropriate collection
-    switch (userCollection) {
-      case 'Customer':
-        await Customer.findByIdAndDelete(id);
-        break;
-      case 'BusinessOwner':
-        await BusinessOwner.findByIdAndDelete(id);
-        break;
-      case 'Manager':
-        await Manager.findByIdAndDelete(id);
-        break;
-      case 'Support':
-        await Support.findByIdAndDelete(id);
-        break;
-      case 'Viewer':
-        await Viewer.findByIdAndDelete(id);
-        break;
-      case 'Admin':
-        await Admin.findByIdAndDelete(id);
-        break;
-    }
-    
+    await User.findByIdAndDelete(id);
     res.json({ message: 'User removed successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error removing user', error: error.message });
@@ -1028,19 +612,17 @@ const removeUser = async (req, res) => {
 // Invite new admin
 const inviteAdmin = async (req, res) => {
   try {
-    const { email, role, permissions } = req.body;
+    const { email, role, permissions, firstName, lastName, businessInfo } = req.body;
     
-    console.log('Invite admin request:', { email, role, permissions });
+    console.log('Invite admin request:', { email, role, permissions, firstName, lastName });
+    
+    // SECURITY: Never allow super admin role to be invited
+    if (role === 'super_admin') {
+      return res.status(403).json({ message: 'Super admin role cannot be invited for security reasons' });
+    }
     
     // Check if user already exists across all collections
-    const existingUser = await Promise.race([
-      Customer.findOne({ email }),
-      BusinessOwner.findOne({ email }),
-      Manager.findOne({ email }),
-      Support.findOne({ email }),
-      Viewer.findOne({ email }),
-      Admin.findOne({ email })
-    ]);
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
@@ -1058,6 +640,17 @@ const inviteAdmin = async (req, res) => {
             { resource: 'users', actions: ['read', 'update'] },
             { resource: 'analytics', actions: ['read'] },
             { resource: 'settings', actions: ['read', 'update'] }
+          ];
+          break;
+        case 'business_owner':
+          finalPermissions = [
+            { resource: 'products', actions: ['read', 'create', 'update', 'delete'] },
+            { resource: 'categories', actions: ['read', 'create', 'update', 'delete'] },
+            { resource: 'orders', actions: ['read', 'update'] },
+            { resource: 'customers', actions: ['read', 'update'] },
+            { resource: 'analytics', actions: ['read'] },
+            { resource: 'settings', actions: ['read', 'update'] },
+            { resource: 'team_management', actions: ['read', 'create', 'update'] }
           ];
           break;
         case 'manager':
@@ -1094,8 +687,11 @@ const inviteAdmin = async (req, res) => {
     const AdminInvite = require('../models/adminInvite');
     const invite = new AdminInvite({
       email,
+      firstName,
+      lastName,
       role,
       permissions: finalPermissions,
+      businessInfo: businessInfo || {},
       invitedBy: req.user.id,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
     });
@@ -1116,7 +712,10 @@ const inviteAdmin = async (req, res) => {
       invite: {
         id: invite._id,
         email: invite.email,
+        firstName: invite.firstName,
+        lastName: invite.lastName,
         role: invite.role,
+        businessInfo: invite.businessInfo,
         expiresAt: invite.expiresAt
       }
     });
@@ -1133,14 +732,14 @@ const updateUserPermissions = async (req, res) => {
     const { permissions } = req.body;
     
     // Find user in any collection and update permissions
-    let updatedUser = await Customer.findByIdAndUpdate(
+    let updatedUser = await User.findByIdAndUpdate(
       id,
       { permissions },
       { new: true }
     ).select('-password');
     
     if (!updatedUser) {
-      updatedUser = await BusinessOwner.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { permissions },
         { new: true }
@@ -1148,7 +747,7 @@ const updateUserPermissions = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Manager.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { permissions },
         { new: true }
@@ -1156,7 +755,7 @@ const updateUserPermissions = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Support.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { permissions },
         { new: true }
@@ -1164,7 +763,7 @@ const updateUserPermissions = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Viewer.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { permissions },
         { new: true }
@@ -1172,7 +771,7 @@ const updateUserPermissions = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Admin.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { permissions },
         { new: true }
@@ -1195,7 +794,7 @@ const removeAdminRole = async (req, res) => {
     const { id } = req.params;
     
     // Find user in any collection and remove admin role
-    let updatedUser = await Customer.findByIdAndUpdate(
+    let updatedUser = await User.findByIdAndUpdate(
       id,
       { 
         role: 'customer',
@@ -1207,7 +806,7 @@ const removeAdminRole = async (req, res) => {
     ).select('-password');
     
     if (!updatedUser) {
-      updatedUser = await BusinessOwner.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { 
           role: 'business_owner',
@@ -1220,7 +819,7 @@ const removeAdminRole = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Manager.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { 
           role: 'manager',
@@ -1233,7 +832,7 @@ const removeAdminRole = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Support.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { 
           role: 'support',
@@ -1246,7 +845,7 @@ const removeAdminRole = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Viewer.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { 
           role: 'viewer',
@@ -1259,7 +858,7 @@ const removeAdminRole = async (req, res) => {
     }
     
     if (!updatedUser) {
-      updatedUser = await Admin.findByIdAndUpdate(
+      updatedUser = await User.findByIdAndUpdate(
         id,
         { 
           role: 'customer',
@@ -1317,41 +916,11 @@ const cancelAdminInvite = async (req, res) => {
 const getAllAdmins = async (req, res) => {
   try {
     // Get admins from Admin collection
-    const adminUsers = await Admin.find({ 
+    const adminUsers = await User.find({ 
       $or: [{ role: 'admin' }, { isAdmin: true }] 
     }).select('-password').sort({ createdAt: -1 });
 
-    // Get admins from other collections
-    const customerAdmins = await Customer.find({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    }).select('-password').sort({ createdAt: -1 });
-
-    const businessOwnerAdmins = await BusinessOwner.find({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    }).select('-password').sort({ createdAt: -1 });
-
-    const managerAdmins = await Manager.find({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    }).select('-password').sort({ createdAt: -1 });
-
-    const supportAdmins = await Support.find({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    }).select('-password').sort({ createdAt: -1 });
-
-    const viewerAdmins = await Viewer.find({ 
-      $or: [{ role: 'admin' }, { isAdmin: true }] 
-    }).select('-password').sort({ createdAt: -1 });
-
-    // Combine all admins with collection info
-    const allAdmins = [
-      ...adminUsers.map(admin => ({ ...admin.toObject(), collection: 'Admin' })),
-      ...customerAdmins.map(admin => ({ ...admin.toObject(), collection: 'Customer' })),
-      ...businessOwnerAdmins.map(admin => ({ ...admin.toObject(), collection: 'BusinessOwner' })),
-      ...managerAdmins.map(admin => ({ ...admin.toObject(), collection: 'Manager' })),
-      ...supportAdmins.map(admin => ({ ...admin.toObject(), collection: 'Support' })),
-      ...viewerAdmins.map(admin => ({ ...admin.toObject(), collection: 'Viewer' }))
-    ];
-
+    const allAdmins = adminUsers.map(admin => ({ ...admin.toObject(), collection: admin.role || 'admin' }));
     res.json(allAdmins);
   } catch (error) {
     console.error('Error getting all admins:', error);
@@ -1364,45 +933,11 @@ const getAdminDetails = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Search in Admin collection first
-    let admin = await Admin.findById(id).select('-password');
-    let collection = 'Admin';
-    
-    if (!admin) {
-      // Search in Customer collection
-      admin = await Customer.findById(id).select('-password');
-      if (admin) collection = 'Customer';
-    }
-    
-    if (!admin) {
-      // Search in BusinessOwner collection
-      admin = await BusinessOwner.findById(id).select('-password');
-      if (admin) collection = 'BusinessOwner';
-    }
-    
-    if (!admin) {
-      // Search in Manager collection
-      admin = await Manager.findById(id).select('-password');
-      if (admin) collection = 'Manager';
-    }
-    
-    if (!admin) {
-      // Search in Support collection
-      admin = await Support.findById(id).select('-password');
-      if (admin) collection = 'Support';
-    }
-    
-    if (!admin) {
-      // Search in Viewer collection
-      admin = await Viewer.findById(id).select('-password');
-      if (admin) collection = 'Viewer';
-    }
-    
+    const admin = await User.findById(id).select('-password');
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
-    
-    const adminData = { ...admin.toObject(), collection };
+    const adminData = { ...admin.toObject(), collection: admin.role };
     res.json(adminData);
   } catch (error) {
     console.error('Error getting admin details:', error);
@@ -1421,7 +956,7 @@ const updateAdmin = async (req, res) => {
     delete updateData.email; // Don't allow email changes via this endpoint
     
     // Search and update in Admin collection first
-    let updatedAdmin = await Admin.findByIdAndUpdate(
+    let updatedAdmin = await User.findByIdAndUpdate(
       id, 
       updateData, 
       { new: true }
@@ -1429,7 +964,7 @@ const updateAdmin = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Customer collection
-      updatedAdmin = await Customer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         updateData, 
         { new: true }
@@ -1438,7 +973,7 @@ const updateAdmin = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try BusinessOwner collection
-      updatedAdmin = await BusinessOwner.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         updateData, 
         { new: true }
@@ -1447,7 +982,7 @@ const updateAdmin = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Manager collection
-      updatedAdmin = await Manager.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         updateData, 
         { new: true }
@@ -1456,7 +991,7 @@ const updateAdmin = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Support collection
-      updatedAdmin = await Support.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         updateData, 
         { new: true }
@@ -1465,7 +1000,7 @@ const updateAdmin = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Viewer collection
-      updatedAdmin = await Viewer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         updateData, 
         { new: true }
@@ -1489,37 +1024,37 @@ const deleteAdmin = async (req, res) => {
     const { id } = req.params;
     
     // Check if trying to delete a super admin
-    let admin = await Admin.findById(id);
+    let admin = await User.findById(id);
     if (admin && admin.isAdmin === true) {
       return res.status(403).json({ message: 'Cannot delete super admin users' });
     }
     
     // Try to delete from Admin collection first
-    let deletedAdmin = await Admin.findByIdAndDelete(id);
+    let deletedAdmin = await User.findByIdAndDelete(id);
     
     if (!deletedAdmin) {
       // Try Customer collection
-      deletedAdmin = await Customer.findByIdAndDelete(id);
+      deletedAdmin = await User.findByIdAndDelete(id);
     }
     
     if (!deletedAdmin) {
       // Try BusinessOwner collection
-      deletedAdmin = await BusinessOwner.findByIdAndDelete(id);
+      deletedAdmin = await User.findByIdAndDelete(id);
     }
     
     if (!deletedAdmin) {
       // Try Manager collection
-      deletedAdmin = await Manager.findByIdAndDelete(id);
+      deletedAdmin = await User.findByIdAndDelete(id);
     }
     
     if (!deletedAdmin) {
       // Try Support collection
-      deletedAdmin = await Support.findByIdAndDelete(id);
+      deletedAdmin = await User.findByIdAndDelete(id);
     }
     
     if (!deletedAdmin) {
       // Try Viewer collection
-      deletedAdmin = await Viewer.findByIdAndDelete(id);
+      deletedAdmin = await User.findByIdAndDelete(id);
     }
     
     if (!deletedAdmin) {
@@ -1540,7 +1075,7 @@ const updateAdminStatus = async (req, res) => {
     const { isActive } = req.body;
     
     // Update in Admin collection first
-    let updatedAdmin = await Admin.findByIdAndUpdate(
+    let updatedAdmin = await User.findByIdAndUpdate(
       id, 
       { isActive }, 
       { new: true }
@@ -1548,7 +1083,7 @@ const updateAdminStatus = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Customer collection
-      updatedAdmin = await Customer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { isActive }, 
         { new: true }
@@ -1557,7 +1092,7 @@ const updateAdminStatus = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try BusinessOwner collection
-      updatedAdmin = await BusinessOwner.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { isActive }, 
         { new: true }
@@ -1566,7 +1101,7 @@ const updateAdminStatus = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Manager collection
-      updatedAdmin = await Manager.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { isActive }, 
         { new: true }
@@ -1575,7 +1110,7 @@ const updateAdminStatus = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Support collection
-      updatedAdmin = await Support.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { isActive }, 
         { new: true }
@@ -1584,7 +1119,7 @@ const updateAdminStatus = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Viewer collection
-      updatedAdmin = await Viewer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { isActive }, 
         { new: true }
@@ -1609,7 +1144,7 @@ const updateAdminPermissions = async (req, res) => {
     const { permissions } = req.body;
     
     // Update in Admin collection first
-    let updatedAdmin = await Admin.findByIdAndUpdate(
+    let updatedAdmin = await User.findByIdAndUpdate(
       id, 
       { permissions }, 
       { new: true }
@@ -1617,7 +1152,7 @@ const updateAdminPermissions = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Customer collection
-      updatedAdmin = await Customer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { permissions }, 
         { new: true }
@@ -1626,7 +1161,7 @@ const updateAdminPermissions = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try BusinessOwner collection
-      updatedAdmin = await BusinessOwner.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { permissions }, 
         { new: true }
@@ -1635,7 +1170,7 @@ const updateAdminPermissions = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Manager collection
-      updatedAdmin = await Manager.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { permissions }, 
         { new: true }
@@ -1644,7 +1179,7 @@ const updateAdminPermissions = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Support collection
-      updatedAdmin = await Support.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { permissions }, 
         { new: true }
@@ -1653,7 +1188,7 @@ const updateAdminPermissions = async (req, res) => {
     
     if (!updatedAdmin) {
       // Try Viewer collection
-      updatedAdmin = await Viewer.findByIdAndUpdate(
+      updatedAdmin = await User.findByIdAndUpdate(
         id, 
         { permissions }, 
         { new: true }
@@ -1683,7 +1218,7 @@ const searchAdmins = async (req, res) => {
     const searchRegex = new RegExp(q, 'i');
     
     // Search in Admin collection
-    const adminResults = await Admin.find({
+    const adminResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1699,7 +1234,7 @@ const searchAdmins = async (req, res) => {
     }).select('-password');
     
     // Search in other collections
-    const customerResults = await Customer.find({
+    const customerResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1714,7 +1249,7 @@ const searchAdmins = async (req, res) => {
       ]
     }).select('-password');
     
-    const businessOwnerResults = await BusinessOwner.find({
+    const businessOwnerResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1728,7 +1263,7 @@ const searchAdmins = async (req, res) => {
       ]
     }).select('-password');
     
-    const managerResults = await Manager.find({
+    const managerResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1742,7 +1277,7 @@ const searchAdmins = async (req, res) => {
       ]
     }).select('-password');
     
-    const supportResults = await Support.find({
+    const supportResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1756,7 +1291,7 @@ const searchAdmins = async (req, res) => {
         ]
     }).select('-password');
     
-    const viewerResults = await Viewer.find({
+    const viewerResults = await User.find({
       $and: [
         { $or: [{ role: 'admin' }, { isAdmin: true }] },
         {
@@ -1790,7 +1325,7 @@ const searchAdmins = async (req, res) => {
 // Get all customers
 const getAllCustomers = async (req, res) => {
   try {
-    const customers = await Customer.find({}).select('-password').sort({ createdAt: -1 });
+    const customers = await User.find({ role: 'customer' }).select('-password').sort({ createdAt: -1 });
     res.json(customers);
   } catch (error) {
     console.error('Error getting customers:', error);
@@ -1801,7 +1336,7 @@ const getAllCustomers = async (req, res) => {
 // Get all business owners
 const getAllBusinessOwners = async (req, res) => {
   try {
-    const businessOwners = await BusinessOwner.find({}).select('-password').sort({ createdAt: -1 });
+    const businessOwners = await User.find({ role: 'business_owner' }).select('-password').sort({ createdAt: -1 });
     res.json(businessOwners);
   } catch (error) {
     console.error('Error getting business owners:', error);
@@ -1815,67 +1350,53 @@ const promoteUser = async (req, res) => {
     const { id } = req.params;
     const { role, adminLevel, permissions, businessInfo, collection } = req.body;
     
+    console.log('Promote user request:', { id, role, adminLevel, collection });
+    
+    // SECURITY: Always set adminLevel to 'admin' for invited/promoted users
+    const secureAdminLevel = 'admin';
+    const secureIsAdmin = false; // Never give super admin privileges to promoted users
+    
     let promotedUser = null;
     
+    // First, find the user to be promoted
+    let userToPromote = null;
     if (collection === 'Customer') {
-      // Promote customer to business owner
-      if (role === 'business_owner') {
-        // Create new business owner
-        const newBusinessOwner = new BusinessOwner({
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          username: req.user.username,
-          role: 'business_owner',
-          isAdmin: adminLevel === 'super_admin',
-          permissions: permissions || [],
-          businessInfo: businessInfo || {},
-          isActive: true
-        });
-        
-        promotedUser = await newBusinessOwner.save();
-        
-        // Optionally deactivate the old customer account
-        await Customer.findByIdAndUpdate(id, { isActive: false });
-        
-      } else if (role === 'admin') {
-        // Promote customer to admin
-        const newAdmin = new Admin({
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          username: req.user.username,
-          role: 'admin',
-          isAdmin: adminLevel === 'super_admin',
-          permissions: permissions || [],
-          isActive: true
-        });
-        
-        promotedUser = await newAdmin.save();
-        
-        // Optionally deactivate the old customer account
-        await Customer.findByIdAndUpdate(id, { isActive: false });
-      }
+      userToPromote = await User.findById(id);
     } else if (collection === 'BusinessOwner') {
-      // Promote business owner to admin
-      if (role === 'admin') {
-        const newAdmin = new Admin({
-          email: req.user.email,
-          firstName: req.user.firstName,
-          lastName: req.user.lastName,
-          username: req.user.username,
-          role: 'admin',
-          isAdmin: adminLevel === 'super_admin',
-          permissions: permissions || [],
-          isActive: true
-        });
-        
-        promotedUser = await newAdmin.save();
-        
-        // Optionally deactivate the old business owner account
-        await Customer.findByIdAndUpdate(id, { isActive: false });
-      }
+      userToPromote = await User.findById(id);
     }
+    
+    if (!userToPromote) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (role === 'business_owner') {
+        promotedUser = await User.findByIdAndUpdate(
+          id,
+          {
+            role: 'business_owner',
+            isAdmin: secureIsAdmin,
+            businessOwnerProfile: {
+              businessInfo: businessInfo || {},
+              businessStatus: 'pending_verification'
+            }
+          },
+          { new: true }
+        ).select('-password');
+      } else if (role === 'admin') {
+        promotedUser = await User.findByIdAndUpdate(
+          id,
+          {
+            role: 'admin',
+            isAdmin: true,
+            adminProfile: {
+              adminLevel: secureAdminLevel,
+              permissions: permissions || []
+            }
+          },
+          { new: true }
+        ).select('-password');
+      }
     
     if (!promotedUser) {
       return res.status(400).json({ message: 'Invalid promotion request' });
@@ -1889,6 +1410,34 @@ const promoteUser = async (req, res) => {
   } catch (error) {
     console.error('Error promoting user:', error);
     res.status(500).json({ message: 'Error promoting user', error: error.message });
+  }
+};
+
+// Get admin profile (for token validation)
+const getAdminProfile = async (req, res) => {
+  try {
+    // req.user is set by authenticateAdminToken middleware
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Return the authenticated admin user
+    res.json({ 
+      admin: {
+        _id: req.user._id,
+        email: req.user.email,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        role: req.user.role,
+        isAdmin: req.user.isAdmin,
+        permissions: req.user.permissions || [],
+        adminLevel: req.user.adminLevel
+      }
+    });
+  } catch (error) {
+    console.error('Error getting admin profile:', error);
+    res.status(500).json({ message: 'Error fetching admin profile', error: error.message });
   }
 };
 
@@ -1926,5 +1475,6 @@ module.exports = {
   searchAdmins,
   getAllCustomers,
   getAllBusinessOwners,
-  promoteUser
+  promoteUser,
+  getAdminProfile
 }; 
