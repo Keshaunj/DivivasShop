@@ -199,33 +199,39 @@ export const productsAPI = {
     return handleResponse(response);
   },
 
-  // Admin: Add new product
-  addProduct: async (formData) => {
-    const response = await fetch(`${API_BASE_URL}/products`, {
+  // Admin: Add product (JSON to /api/admin/products — FormData is not parsed on the server)
+  addProduct: async (payload) => {
+    const response = await fetch(`${API_BASE_URL}/admin/products`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAdminAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
       credentials: 'include',
-      body: formData, // FormData for file uploads
+      body: JSON.stringify(payload),
     });
     return handleResponse(response);
   },
 
   // Admin: Update product
-  updateProduct: async (productId, formData) => {
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+  updateProduct: async (productId, payload) => {
+    const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAdminAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
       credentials: 'include',
-      body: formData, // FormData for file uploads
+      body: JSON.stringify(payload),
     });
     return handleResponse(response);
   },
 
   // Admin: Delete product
   deleteProduct: async (productId) => {
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders(),
+      headers: getAdminAuthHeaders(),
       credentials: 'include',
     });
     return handleResponse(response);
@@ -577,6 +583,15 @@ export const adminAPI = {
       headers: getAdminAuthHeaders(),
       credentials: 'include',
       body: JSON.stringify({ ...promoteData, collection }),
+    });
+    return handleResponse(response);
+  },
+
+  // Get admin profile (for token validation)
+  getAdminProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+      headers: getAdminAuthHeaders(),
+      credentials: 'include',
     });
     return handleResponse(response);
   },

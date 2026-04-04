@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useBusinessOwnerNotifications } from '../../contexts/business-owner/BusinessOwnerNotificationContext';
 
 const BusinessOwnerNotificationModal = () => {
-  const { currentNotification, isModalOpen, closeNotification } = useBusinessOwnerNotifications();
+  const { currentNotification, isModalOpen, closeBusinessOwnerNotification } =
+    useBusinessOwnerNotifications();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ const BusinessOwnerNotificationModal = () => {
             <h2 className="text-xl font-bold text-gray-900">{currentNotification.title}</h2>
           </div>
           <button
-            onClick={closeNotification}
+            onClick={closeBusinessOwnerNotification}
             className="text-gray-400 hover:text-gray-600 text-xl"
           >
             &times;
@@ -137,7 +138,7 @@ const BusinessOwnerNotificationModal = () => {
             </button>
           )}
           <button
-            onClick={closeNotification}
+            onClick={closeBusinessOwnerNotification}
             className={`px-4 py-2 text-white rounded-md ${getButtonColor(currentNotification.type)}`}
           >
             {currentNotification.primaryActionText || 'Got it'}

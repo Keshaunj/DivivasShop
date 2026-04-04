@@ -61,11 +61,33 @@ const CustomerUsers = ({ isSuperAdmin }) => {
     e.preventDefault();
     try {
       setLoading(true);
-      // Update user logic here
+      
+      // Determine which collection the user belongs to
+      let collection = 'Customer'; // Default
+      if (selectedUser.role === 'admin' || selectedUser.isAdmin) {
+        collection = 'Admin';
+      } else if (selectedUser.role === 'business_owner') {
+        collection = 'BusinessOwner';
+      }
+      
+      // Prepare update data
+      const updateData = {
+        username: editForm.username,
+        email: editForm.email,
+        role: editForm.role,
+        isActive: editForm.isActive,
+        businessInfo: editForm.businessInfo
+      };
+      
+      // Update user using the appropriate API
+      await adminAPI.updateUser(selectedUser._id, updateData, collection);
+      
       setMessage('User updated successfully!');
       setShowEditModal(false);
+      setSelectedUser(null);
       loadUsers();
     } catch (error) {
+      console.error('Error updating user:', error);
       setMessage('Error updating user: ' + error.message);
     } finally {
       setLoading(false);
@@ -76,11 +98,52 @@ const CustomerUsers = ({ isSuperAdmin }) => {
     try {
       setLoading(true);
       const newStatus = !user.isActive;
-      // Update user status logic here
+      
+      // Determine which collection the user belongs to
+      let collection = 'Customer'; // Default
+      if (user.role === 'admin' || user.isAdmin) {
+        collection = 'Admin';
+      } else if (user.role === 'business_owner') {
+        collection = 'BusinessOwner';
+      }
+      
+      // Update user status using the appropriate API
+      await adminAPI.updateUserStatus(user._id, newStatus, collection);
+      
       setMessage(`User ${newStatus ? 'activated' : 'deactivated'} successfully!`);
       loadUsers();
     } catch (error) {
+      console.error('Error updating user status:', error);
       setMessage('Error updating user status: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Are you sure you want to delete ${user.username || user.email}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Determine which collection the user belongs to
+      let collection = 'Customer'; // Default
+      if (user.role === 'admin' || user.isAdmin) {
+        collection = 'Admin';
+      } else if (user.role === 'business_owner') {
+        collection = 'BusinessOwner';
+      }
+      
+      // Delete user using the appropriate API
+      await adminAPI.deleteUser(user._id, collection);
+      
+      setMessage('User deleted successfully!');
+      loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setMessage('Error deleting user: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -237,11 +300,17 @@ const CustomerUsers = ({ isSuperAdmin }) => {
                       </button>
                       <button 
                         onClick={() => handleToggleStatus(user)}
-                        className={`${
+                        className={`mr-3 ${
                           user.isActive !== false ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
                         }`}
                       >
                         {user.isActive !== false ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteUser(user)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -252,6 +321,151 @@ const CustomerUsers = ({ isSuperAdmin }) => {
         ) : (
           <div className="text-center text-gray-500 py-8">
             {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {showEditModal && selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit User</h3>
+              <form onSubmit={handleUpdateUser} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input
+                      type="text"
+                      value={editForm.username}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="customer">Customer</option>
+                    <option value="business_owner">Business Owner</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={editForm.isActive}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
+                    Active
+                  </label>
+                </div>
+
+                {/* Business Info Fields */}
+                {(editForm.role === 'business_owner' || selectedUser.role === 'business_owner') && (
+                  <div className="space-y-3 border-t pt-4">
+                    <h4 className="text-sm font-medium text-gray-700">Business Information</h4>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                      <input
+                        type="text"
+                        value={editForm.businessInfo.businessName}
+                        onChange={(e) => setEditForm(prev => ({ 
+                          ...prev, 
+                          businessInfo: { ...prev.businessInfo, businessName: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+                      <select
+                        value={editForm.businessInfo.businessType}
+                        onChange={(e) => setEditForm(prev => ({ 
+                          ...prev, 
+                          businessInfo: { ...prev.businessInfo, businessType: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="retail">Retail</option>
+                        <option value="wholesale">Wholesale</option>
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="service">Service</option>
+                        <option value="food_beverage">Food & Beverage</option>
+                        <option value="health_beauty">Health & Beauty</option>
+                        <option value="fashion">Fashion</option>
+                        <option value="home_garden">Home & Garden</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={editForm.businessInfo.phone}
+                        onChange={(e) => setEditForm(prev => ({ 
+                          ...prev, 
+                          businessInfo: { ...prev.businessInfo, phone: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                      <input
+                        type="url"
+                        value={editForm.businessInfo.website}
+                        onChange={(e) => setEditForm(prev => ({ 
+                          ...prev, 
+                          businessInfo: { ...prev.businessInfo, website: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setSelectedUser(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {loading ? 'Updating...' : 'Update User'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>

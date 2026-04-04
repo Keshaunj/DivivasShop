@@ -17,6 +17,8 @@ const SuperAdminPanel = () => {
   });
   const [users, setUsers] = useState([]);
   const [message, setMessage] = useState('');
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState(null);
 
   // Check if user is super admin
   const isSuperAdminUser = isSuperAdmin();
@@ -27,45 +29,52 @@ const SuperAdminPanel = () => {
     }
   }, [isSuperAdminUser]);
 
+  const parseRevenue = (v) => {
+    if (v == null || v === '') return 0;
+    const n = typeof v === 'number' ? v : parseFloat(String(v), 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const loadData = async () => {
+    setStatsLoading(true);
+    setStatsError(null);
     try {
-      console.log('Loading data...');
-      
-      // Try to load users first
       const usersData = await adminAPI.getAllUsers();
       setUsers(usersData || []);
-      
-      // Set basic stats from users data
+
       const basicStats = {
         totalUsers: usersData?.length || 0,
-        totalAdmins: usersData?.filter(u => u.role === 'admin' || u.isAdmin)?.length || 0,
+        totalAdmins: usersData?.filter((u) => u.role === 'admin' || u.isAdmin)?.length || 0,
         totalProducts: 0,
         totalOrders: 0,
-        totalBusinesses: usersData?.filter(u => u.role === 'admin')?.length || 0,
+        totalBusinesses: usersData?.filter((u) => u.role === 'business_owner')?.length || 0,
         platformRevenue: 0
       };
       setStats(basicStats);
-      
-      // Try to load dashboard stats
+
       try {
         const statsData = await adminAPI.getDashboardStats();
         if (statsData?.stats) {
+          const s = statsData.stats;
           setStats({
-            totalUsers: statsData.stats.platformUsers || statsData.stats.totalUsers || basicStats.totalUsers,
-            totalAdmins: statsData.stats.totalAdmins || basicStats.totalAdmins,
-            totalProducts: statsData.stats.totalProducts || 0,
-            totalOrders: statsData.stats.totalOrders || 0,
-            totalBusinesses: statsData.stats.totalBusinesses || basicStats.totalBusinesses,
-            platformRevenue: statsData.stats.platformRevenue || statsData.stats.totalRevenue || 0
+            totalUsers: s.totalUsers ?? s.platformUsers ?? basicStats.totalUsers,
+            totalAdmins: s.totalAdmins ?? basicStats.totalAdmins,
+            totalProducts: s.totalProducts ?? 0,
+            totalOrders: s.totalOrders ?? 0,
+            totalBusinesses: s.totalBusinesses ?? basicStats.totalBusinesses,
+            platformRevenue: parseRevenue(s.platformRevenue ?? s.totalRevenue)
           });
         }
       } catch (statsError) {
         console.log('Stats failed, using basic stats:', statsError.message);
+        setStatsError(statsError.message || 'Dashboard stats could not be loaded; showing user-list counts only.');
       }
-      
     } catch (error) {
       console.error('Error loading data:', error);
       setMessage('Error loading data: ' + error.message);
+      setStatsError(error.message);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -104,11 +113,25 @@ const SuperAdminPanel = () => {
   const renderSection = () => {
     switch (activeSection) {
       case 'overview':
-        return <PlatformOverview stats={stats} />;
+        return (
+          <PlatformOverview
+            stats={stats}
+            loading={statsLoading}
+            error={statsError}
+            onRetry={loadData}
+          />
+        );
       case 'user-management':
         return <UserManagement users={users} message={message} setMessage={setMessage} onRefresh={loadData} />;
       default:
-        return <PlatformOverview stats={stats} />;
+        return (
+          <PlatformOverview
+            stats={stats}
+            loading={statsLoading}
+            error={statsError}
+            onRetry={loadData}
+          />
+        );
     }
   };
 
@@ -182,14 +205,36 @@ const SuperAdminPanel = () => {
   );
 };
 
-// Platform Overview Component
-const PlatformOverview = ({ stats }) => {
+// Platform Overview — stats from GET /api/admin/stats (MongoDB via Product, Order, User collections)
+const PlatformOverview = ({ stats, loading, error, onRetry }) => {
+  const revenueDisplay = Number.isFinite(stats.platformRevenue)
+    ? stats.platformRevenue.toFixed(2)
+    : '0.00';
+
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Platform Overview</h2>
-      
-      {/* Platform Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900">Platform Overview</h2>
+        {loading && (
+          <span className="text-sm text-gray-500">Loading…</span>
+        )}
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            <span>{error}</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="text-amber-900 underline font-medium"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
           <div className="flex items-center">
             <div className="text-2xl">Users</div>
@@ -199,7 +244,7 @@ const PlatformOverview = ({ stats }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
           <div className="flex items-center">
             <div className="text-2xl">Admin</div>
@@ -209,7 +254,7 @@ const PlatformOverview = ({ stats }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-green-50 p-6 rounded-lg border border-green-200">
           <div className="flex items-center">
             <div className="text-2xl">Business</div>
@@ -219,13 +264,34 @@ const PlatformOverview = ({ stats }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
           <div className="flex items-center">
             <div className="text-2xl">💰</div>
             <div className="ml-4">
-              <div className="text-2xl font-bold text-yellow-900">${stats.platformRevenue}</div>
+              <div className="text-2xl font-bold text-yellow-900">${revenueDisplay}</div>
               <div className="text-sm text-yellow-600">Platform Revenue</div>
+              <div className="text-xs text-yellow-700 mt-1">Paid, shipped, or delivered orders</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+          <div className="flex items-center">
+            <div className="text-2xl">Products</div>
+            <div className="ml-4">
+              <div className="text-2xl font-bold text-slate-900">{stats.totalProducts}</div>
+              <div className="text-sm text-slate-600">Catalog products</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-indigo-50 p-6 rounded-lg border border-indigo-200">
+          <div className="flex items-center">
+            <div className="text-2xl">Orders</div>
+            <div className="ml-4">
+              <div className="text-2xl font-bold text-indigo-900">{stats.totalOrders}</div>
+              <div className="text-sm text-indigo-600">All orders</div>
             </div>
           </div>
         </div>

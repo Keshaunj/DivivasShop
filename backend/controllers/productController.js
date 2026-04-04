@@ -4,27 +4,16 @@ const Product = require('../models/products');
 const getAllProducts = async (req, res) => {
   try {
     const { category } = req.query;
-    
-    // Build filter object
     let filter = {};
-    
-    // If category is provided, filter by category
+
     if (category) {
-      // Find category by name (case-insensitive)
-      const Category = require('../models/categories');
-      const categoryDoc = await Category.findOne({ 
-        name: { $regex: new RegExp(category, 'i') } 
-      });
-      
-      if (categoryDoc) {
-        filter.category = categoryDoc._id;
-      } else {
-        // If category not found, return empty array
-        return res.json([]);
-      }
+      // Product.category is a string; Category collection not in use — match name on product.
+      const escaped = String(category).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.category = { $regex: new RegExp(`^${escaped}$`, 'i') };
     }
-    
-    const products = await Product.find(filter).populate('category');
+
+    // const products = await Product.find(filter).populate('category');
+    const products = await Product.find(filter);
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -34,7 +23,8 @@ const getAllProducts = async (req, res) => {
 
 const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category');
+    // const product = await Product.findById(req.params.id).populate('category');
+    const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (err) {

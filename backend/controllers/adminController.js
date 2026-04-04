@@ -1,8 +1,17 @@
 const Product = require('../models/products');
-const Category = require('../models/categories');
+// const Category = require('../models/categories'); // not in use yet — see models/categories.js
 const Order = require('../models/order');
 const User = require('../models/users');
 const jwt = require('jsonwebtoken');
+
+/** Matches Order schema enum — revenue excludes pending/cancelled. */
+const ORDER_STATUSES_REVENUE = ['paid', 'shipped', 'delivered'];
+
+function orderAmount(order) {
+  const v = order?.totalPrice ?? order?.total;
+  const n = typeof v === 'number' ? v : parseFloat(v, 10);
+  return Number.isFinite(n) ? n : 0;
+}
 
 // Admin middleware to check if user is admin
 const isAdmin = (req, res, next) => {
@@ -167,24 +176,15 @@ const getDashboardStats = async (req, res) => {
       try {
         totalProducts = await Product.countDocuments();
         totalOrders = await Order.countDocuments();
-        
-        // Count users from all role-based collections
-        const customerCount = await User.countDocuments({ role: 'customer' });
+        totalUsers = await User.countDocuments();
         const businessOwnerCount = await User.countDocuments({ role: 'business_owner' });
-        const managerCount = await User.countDocuments({ role: 'manager' });
-        const supportCount = await User.countDocuments({ role: 'support' });
-        const viewerCount = await User.countDocuments({ role: 'viewer' });
-        const adminCount = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
-        
-        totalUsers = customerCount + businessOwnerCount + managerCount + supportCount + viewerCount + adminCount;
         totalBusinesses = businessOwnerCount;
-        totalAdmins = adminCount;
+        totalAdmins = await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] });
         
         console.log('📊 Counts:', { totalProducts, totalOrders, totalUsers, totalBusinesses, totalAdmins });
         
-        // Calculate platform revenue
-        const orders = await Order.find({ status: 'completed' });
-        platformRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+        const revenueOrders = await Order.find({ status: { $in: ORDER_STATUSES_REVENUE } });
+        platformRevenue = revenueOrders.reduce((sum, order) => sum + orderAmount(order), 0);
         
         console.log('💰 Platform revenue:', platformRevenue);
         
@@ -194,9 +194,9 @@ const getDashboardStats = async (req, res) => {
           .limit(5)
           .populate('user', 'username email');
         
-        // Get low stock products across platform
-        lowStockProducts = await Product.find({ stock: { $lt: 10 } })
-          .select('name stock price')
+        // Products not in stock (schema uses inStock, not stock)
+        lowStockProducts = await Product.find({ inStock: false })
+          .select('name price inStock')
           .limit(5);
           
       } catch (error) {
@@ -208,6 +208,7 @@ const getDashboardStats = async (req, res) => {
         stats: {
           totalProducts,
           totalOrders,
+          totalUsers,
           platformUsers: totalUsers,
           totalBusinesses,
           totalAdmins,
@@ -233,9 +234,8 @@ const getDashboardStats = async (req, res) => {
         
         console.log('📊 Business counts:', { totalProducts, totalOrders, totalUsers });
         
-        // Calculate business revenue
-        const orders = await Order.find({ status: 'completed' });
-        totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+        const revenueOrders = await Order.find({ status: { $in: ORDER_STATUSES_REVENUE } });
+        totalRevenue = revenueOrders.reduce((sum, order) => sum + orderAmount(order), 0);
         
         console.log('💰 Business revenue:', totalRevenue);
         
@@ -245,9 +245,8 @@ const getDashboardStats = async (req, res) => {
           .limit(5)
           .populate('user', 'username email');
         
-        // Get low stock products for business
-        lowStockProducts = await Product.find({ stock: { $lt: 10 } })
-          .select('name stock price')
+        lowStockProducts = await Product.find({ inStock: false })
+          .select('name price inStock')
           .limit(5);
           
       } catch (error) {
@@ -277,32 +276,48 @@ const getDashboardStats = async (req, res) => {
 // Get all products for admin
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find().populate('category');
+    const products = await Product.find().sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching products', error: error.message });
   }
 };
 
-// Add new product
+// Add new product (expects JSON body from admin panel; multipart not configured)
 const addProduct = async (req, res) => {
   try {
-    const { name, description, price, category, stock, featured } = req.body;
-    
+    const { name, description, price, category, stock, featured, imageUrl } = req.body;
+
+    if (!name || String(name).trim() === '') {
+      return res.status(400).json({ message: 'Product name is required' });
+    }
+    if (price === undefined || price === null || price === '') {
+      return res.status(400).json({ message: 'Price is required' });
+    }
+
+    const priceNum = parseFloat(price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      return res.status(400).json({ message: 'Valid price is required' });
+    }
+
+    const stockNum = parseInt(stock, 10);
+    const qty = Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0;
+
     const newProduct = new Product({
-      name,
-      description,
-      price: parseFloat(price),
-      category,
-      stock: parseInt(stock) || 0,
-      featured: featured || false,
-      image: req.file ? req.file.path : null // If you have file upload middleware
+      name: String(name).trim(),
+      description: description != null ? String(description) : '',
+      price: priceNum,
+      category: category != null ? String(category).trim() : '',
+      stock: qty,
+      featured: Boolean(featured),
+      inStock: qty > 0,
+      imageUrl: imageUrl ? String(imageUrl).trim() : undefined
     });
-    
+
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (error) {
-    res.status(500).json({ message: 'Error adding product', error: error.message });
+    res.status(400).json({ message: 'Error adding product', error: error.message });
   }
 };
 
@@ -310,26 +325,40 @@ const addProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
-    
-    // Handle file upload if present
-    if (req.file) {
-      updates.image = req.file.path;
+    const body = req.body || {};
+
+    const updates = {};
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.description !== undefined) updates.description = body.description;
+    if (body.price !== undefined) {
+      const p = parseFloat(body.price);
+      if (!Number.isFinite(p) || p < 0) {
+        return res.status(400).json({ message: 'Valid price is required' });
+      }
+      updates.price = p;
     }
-    
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id, 
-      updates, 
-      { new: true }
-    ).populate('category');
-    
+    if (body.category !== undefined) updates.category = body.category;
+    if (body.featured !== undefined) updates.featured = Boolean(body.featured);
+    if (body.imageUrl !== undefined) updates.imageUrl = body.imageUrl || undefined;
+    if (body.stock !== undefined) {
+      const stockNum = parseInt(body.stock, 10);
+      const qty = Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0;
+      updates.stock = qty;
+      updates.inStock = qty > 0;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true
+    });
+
     if (!updatedProduct) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     res.json(updatedProduct);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating product', error: error.message });
+    res.status(400).json({ message: 'Error updating product', error: error.message });
   }
 };
 
@@ -349,78 +378,32 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// Get all categories for admin
+// --- Categories collection: NOT IN USE YET (see models/categories.js). Stubs keep routes alive. ---
+// const getAllCategories = async (req, res) => {
+//   try {
+//     const categories = await Category.find().sort({ name: 1 });
+//     res.json(categories);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching categories', error: error.message });
+//   }
+// };
 const getAllCategories = async (req, res) => {
-  try {
-    const categories = await Category.find();
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching categories', error: error.message });
-  }
+  res.json([]);
 };
 
-// Add new category
+// const addCategory = async (req, res) => { ... Category save ... };
 const addCategory = async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    
-    const newCategory = new Category({
-      name,
-      description
-    });
-    
-    await newCategory.save();
-    res.status(201).json(newCategory);
-  } catch (error) {
-    res.status(500).json({ message: 'Error adding category', error: error.message });
-  }
+  res.status(501).json({ message: 'Category collection not in use yet' });
 };
 
-// Update category
+// const updateCategory = async (req, res) => { ... Category.findByIdAndUpdate ... };
 const updateCategory = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    
-    const updatedCategory = await Category.findByIdAndUpdate(
-      id, 
-      updates, 
-      { new: true }
-    );
-    
-    if (!updatedCategory) {
-      return res.status(404).json({ message: 'Category not found' });
-    }
-    
-    res.json(updatedCategory);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating category', error: error.message });
-  }
+  res.status(501).json({ message: 'Category collection not in use yet' });
 };
 
-// Delete category
+// const deleteCategory = async (req, res) => { ... Product.find / Category.findByIdAndDelete ... };
 const deleteCategory = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Check if category is being used by any products
-    const productsUsingCategory = await Product.find({ category: id });
-    if (productsUsingCategory.length > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete category that has products. Please reassign or delete products first.' 
-      });
-    }
-    
-    const deletedCategory = await Category.findByIdAndDelete(id);
-    
-    if (!deletedCategory) {
-      return res.status(404).json({ message: 'Category not found' });
-    }
-    
-    res.json({ message: 'Category deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting category', error: error.message });
-  }
+  res.status(501).json({ message: 'Category collection not in use yet' });
 };
 
 // Get all orders for admin

@@ -22,7 +22,7 @@ const CustomerAdminManagement = ({ isSuperAdmin }) => {
     firstName: '',
     lastName: '',
     role: 'business_owner',
-    adminLevel: 'admin',
+    adminLevel: 'admin', // Fixed: Always set to 'admin' for security
     permissions: [],
     businessInfo: {
       businessName: '',
@@ -49,7 +49,7 @@ const CustomerAdminManagement = ({ isSuperAdmin }) => {
   // Promote form state
   const [promoteForm, setPromoteForm] = useState({
     role: 'business_owner',
-    adminLevel: 'admin',
+    adminLevel: 'admin', // Fixed: Always set to 'admin' for security
     businessInfo: {
       businessName: '',
       businessType: 'retail',
@@ -583,21 +583,14 @@ const CustomerAdminManagement = ({ isSuperAdmin }) => {
                 >
                   <option value="business_owner">Business Owner</option>
                   <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
+                  {/* Super Admin option removed for security - only existing super admins can promote to super admin */}
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Level</label>
-                <select
-                  value={inviteForm.adminLevel}
-                  onChange={(e) => setInviteForm(prev => ({ ...prev, adminLevel: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
+              {/* Admin Level is automatically set to 'admin' for security - no super admin access for invited users */}
+              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                <strong>Security Note:</strong> All invited users will automatically receive "admin" level access. 
+                Super admin privileges cannot be granted through invitations for security reasons.
               </div>
 
               {/* Business Info for Business Owners */}
@@ -681,21 +674,14 @@ const CustomerAdminManagement = ({ isSuperAdmin }) => {
                 >
                   <option value="business_owner">Business Owner</option>
                   <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
+                  {/* Super Admin option removed for security - only existing super admins can promote to super admin */}
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Level</label>
-                <select
-                  value={promoteForm.adminLevel}
-                  onChange={(e) => setPromoteForm(prev => ({ ...prev, adminLevel: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
+              {/* Admin Level is automatically set to 'admin' for security - no super admin access for promoted users */}
+              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                <strong>Security Note:</strong> All promoted users will automatically receive "admin" level access. 
+                Super admin privileges cannot be granted through promotions for security reasons.
               </div>
 
               {/* Business Info for Business Owners */}
@@ -800,22 +786,14 @@ const CustomerAdminManagement = ({ isSuperAdmin }) => {
                   <option value="customer">Customer</option>
                   <option value="business_owner">Business Owner</option>
                   <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
+                  {/* Super Admin option removed for security - only existing super admins can edit to super admin */}
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Level</label>
-                <select
-                  value={editForm.adminLevel}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, adminLevel: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
+              {/* Admin Level is automatically set to 'admin' for security - no super admin access for edited users */}
+              <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                <strong>Security Note:</strong> All edited users will automatically receive "admin" level access. 
+                Super admin privileges cannot be granted through editing for security reasons.
               </div>
 
               <div className="flex items-center">

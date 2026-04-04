@@ -13,7 +13,7 @@ export const useAdminAuth = () => {
 
 export const AdminAuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
   const [error, setError] = useState(null);
 
   // Check if admin is authenticated on mount
@@ -23,26 +23,36 @@ export const AdminAuthProvider = ({ children }) => {
 
   const checkAdminAuthStatus = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('adminToken');
-      if (token) {
-        // Verify token is valid by making a simple request
-        const response = await adminAPI.getDashboardStats();
-        if (response) {
-          // If we get a response, the token is valid
-          // For now, we'll set a basic admin object
-          // The actual admin data will be set when they log in
-          setAdmin({ 
-            email: 'admin@example.com', // This will be updated on login
-            username: 'Admin',
-            role: 'admin',
-            isAdmin: true
-          });
+      
+      if (!token) {
+        setLoading(false);
+        return; // No token, stay unauthenticated
+      }
+
+      // Verify token is valid by making a request to get admin profile
+      try {
+        const response = await adminAPI.getAdminProfile();
+        if (response && response.admin) {
+          setAdmin(response.admin);
+        } else {
+          // Invalid response, clear token and admin
+          localStorage.removeItem('adminToken');
+          setAdmin(null);
         }
+      } catch (error) {
+        console.log('Admin token validation failed:', error.message);
+        // Token is invalid, clear it and admin
+        localStorage.removeItem('adminToken');
+        setAdmin(null);
       }
     } catch (error) {
       console.log('Admin auth check failed:', error.message);
       localStorage.removeItem('adminToken');
       setAdmin(null);
+    } finally {
+      setLoading(false);
     }
   };
 

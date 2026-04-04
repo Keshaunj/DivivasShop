@@ -97,8 +97,8 @@ const CorporatePortal = () => {
     );
   }
 
-  // Always show login if no admin is authenticated
-  if (!admin || showLogin) {
+  // Always show login if no admin is authenticated or not properly authenticated
+  if (!admin || !isAdminAuthenticated() || showLogin) {
     return (
       <div className="min-h-screen relative overflow-hidden">
         <MountainBackground />
@@ -171,6 +171,29 @@ const CorporatePortal = () => {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Double-check authentication before showing portal
+  if (!isAdminAuthenticated()) {
+    return (
+      <div className="min-h-screen relative overflow-hidden">
+        <MountainBackground />
+        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-600 text-2xl mb-4">🔒</div>
+            <h2 className="text-xl font-semibold text-red-600 mb-4">Access Denied</h2>
+            <p className="text-white">Authentication required. Please log in.</p>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Login
+            </button>
           </div>
         </div>
       </div>
